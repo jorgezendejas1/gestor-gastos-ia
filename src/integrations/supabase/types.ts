@@ -14,7 +14,134 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      movimientos: {
+        Row: {
+          categoria: string | null
+          created_at: string
+          descripcion: string
+          fecha: string
+          fuente_texto: string | null
+          id: string
+          metodo_pago: string
+          monto: number
+          semana_id: string | null
+          tipo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          categoria?: string | null
+          created_at?: string
+          descripcion: string
+          fecha: string
+          fuente_texto?: string | null
+          id?: string
+          metodo_pago: string
+          monto: number
+          semana_id?: string | null
+          tipo: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          categoria?: string | null
+          created_at?: string
+          descripcion?: string
+          fecha?: string
+          fuente_texto?: string | null
+          id?: string
+          metodo_pago?: string
+          monto?: number
+          semana_id?: string | null
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_semana_id_fkey"
+            columns: ["semana_id"]
+            isOneToOne: false
+            referencedRelation: "semanas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      semanas: {
+        Row: {
+          created_at: string
+          fecha_fin: string
+          fecha_inicio: string
+          gastos_totales: number | null
+          id: string
+          ingresos_totales: number | null
+          saldo_final: number | null
+          saldo_inicial: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          fecha_fin: string
+          fecha_inicio: string
+          gastos_totales?: number | null
+          id?: string
+          ingresos_totales?: number | null
+          saldo_final?: number | null
+          saldo_inicial?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          fecha_fin?: string
+          fecha_inicio?: string
+          gastos_totales?: number | null
+          id?: string
+          ingresos_totales?: number | null
+          saldo_final?: number | null
+          saldo_inicial?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sobres: {
+        Row: {
+          created_at: string
+          gastado_semana: number | null
+          id: string
+          mensual: number
+          nombre: string
+          restante_semana: number
+          semanal_calculado: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          gastado_semana?: number | null
+          id?: string
+          mensual: number
+          nombre: string
+          restante_semana: number
+          semanal_calculado: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          gastado_semana?: number | null
+          id?: string
+          mensual?: number
+          nombre?: string
+          restante_semana?: number
+          semanal_calculado?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
