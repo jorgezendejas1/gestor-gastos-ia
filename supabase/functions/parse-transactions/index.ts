@@ -20,6 +20,13 @@ serve(async (req) => {
       );
     }
 
+    // Extract balance markers
+    const amanecimosMatch = text.match(/Amanecimos con[:\s]+(\d+(?:[.,]\d+)?)/i);
+    const cerramosMatch = text.match(/Cerramos con[:\s]+(\d+(?:[.,]\d+)?)/i);
+    
+    const saldoInicial = amanecimosMatch ? parseFloat(amanecimosMatch[1].replace(',', '.')) : null;
+    const cerramosCon = cerramosMatch ? parseFloat(cerramosMatch[1].replace(',', '.')) : null;
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY no configurada");
@@ -35,7 +42,9 @@ Reglas de parseo:
 4. DESCRIPCIÓN: El concepto principal (café, supermercado, sueldo, etc)
 5. MÉTODO DE PAGO: "tarjeta", "efectivo", u "otro". Si no se menciona, usa "otro"
 
-IMPORTANTE: Si una línea es ambigua o no se puede parsear con confianza, devuelve un error con sugerencia.
+IMPORTANTE: 
+- Ignora líneas que contengan "Amanecimos con" o "Cerramos con" ya que son marcadores de saldo, NO transacciones.
+- Si una línea es ambigua o no se puede parsear con confianza, devuelve un error con sugerencia.
 
 Responde SOLO con JSON válido, sin markdown.`;
 
@@ -118,7 +127,11 @@ Responde SOLO con JSON válido, sin markdown.`;
     const parsedData = JSON.parse(toolCall.function.arguments);
     
     return new Response(
-      JSON.stringify(parsedData),
+      JSON.stringify({
+        ...parsedData,
+        saldoInicial,
+        cerramosCon
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 

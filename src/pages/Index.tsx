@@ -86,13 +86,15 @@ const Index = () => {
     setTransactions((data || []) as Transaction[]);
   };
 
-  const handleTransactionsParsed = async (parsedTransactions: any[]) => {
+  const handleTransactionsParsed = async (parsedData: any) => {
     if (!user) {
       toast.error('Debes iniciar sesión para guardar movimientos');
       return;
     }
 
     try {
+      const { transactions: parsedTransactions, saldoInicial, cerramosCon } = parsedData;
+
       // Get or create current week
       const today = new Date();
       const weekStart = startOfWeek(today, { weekStartsOn: 1 });
@@ -109,6 +111,9 @@ const Index = () => {
         throw semanaError;
       }
 
+      // Determine initial balance
+      const initialBalance = saldoInicial !== null ? saldoInicial : (semana?.saldo_inicial || 0);
+
       if (!semana) {
         const { data: newSemana, error: createError } = await supabase
           .from('semanas')
@@ -116,7 +121,7 @@ const Index = () => {
             user_id: user.id,
             fecha_inicio: format(weekStart, 'yyyy-MM-dd'),
             fecha_fin: format(weekEnd, 'yyyy-MM-dd'),
-            saldo_inicial: 0,
+            saldo_inicial: initialBalance,
             ingresos_totales: 0,
             gastos_totales: 0,
             saldo_final: 0,
@@ -126,10 +131,16 @@ const Index = () => {
 
         if (createError) throw createError;
         semana = newSemana;
+      } else if (saldoInicial !== null && semana.saldo_inicial !== saldoInicial) {
+        // Update saldo_inicial if "Amanecimos con" was detected
+        await supabase
+          .from('semanas')
+          .update({ saldo_inicial: initialBalance })
+          .eq('id', semana.id);
       }
 
       // Insert transactions
-      const movimientos = parsedTransactions.map(t => ({
+      const movimientos = parsedTransactions.map((t: any) => ({
         user_id: user.id,
         fecha: t.date.split('T')[0],
         descripcion: t.description,
@@ -147,8 +158,8 @@ const Index = () => {
 
       if (insertError) throw insertError;
 
-      // Update week totals
-      await updateWeekTotals(semana.id);
+      // Update week totals and check for inconsistencies
+      await updateWeekTotals(semana.id, cerramosCon);
       
       toast.success(`${movimientos.length} movimiento(s) guardado(s)`);
     } catch (error) {
@@ -157,7 +168,13 @@ const Index = () => {
     }
   };
 
-  const updateWeekTotals = async (semanaId: string) => {
+  const updateWeekTotals = async (semanaId: string, cerramosCon?: number | null) => {
+    const { data: semana } = await supabase
+      .from('semanas')
+      .select('saldo_inicial')
+      .eq('id', semanaId)
+      .single();
+
     const { data: movimientos } = await supabase
       .from('movimientos')
       .select('monto, tipo')
@@ -173,14 +190,28 @@ const Index = () => {
       .filter(m => m.tipo === 'gasto')
       .reduce((sum, m) => sum + Number(m.monto), 0);
 
+    const saldoInicial = Number(semana?.saldo_inicial || 0);
+    const saldoCalculado = saldoInicial + ingresos - gastos;
+
     await supabase
       .from('semanas')
       .update({
         ingresos_totales: ingresos,
         gastos_totales: gastos,
-        saldo_final: ingresos - gastos,
+        saldo_final: saldoCalculado,
       })
       .eq('id', semanaId);
+
+    // Check for inconsistency
+    if (cerramosCon !== null && cerramosCon !== undefined) {
+      const diferencia = Math.abs(saldoCalculado - cerramosCon);
+      if (diferencia > 0.01) { // Allow for small rounding errors
+        toast.error(
+          `⚠️ Inconsistencia detectada: "Cerramos con: ${cerramosCon}" pero el cálculo da ${saldoCalculado.toFixed(2)}. Diferencia: ${diferencia.toFixed(2)}`,
+          { duration: 8000 }
+        );
+      }
+    }
   };
 
   const handleLogout = async () => {

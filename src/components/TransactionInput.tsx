@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 interface TransactionInputProps {
-  onTransactionsParsed: (transactions: any[]) => void;
+  onTransactionsParsed: (data: any) => void;
 }
 
 export const TransactionInput = ({ onTransactionsParsed }: TransactionInputProps) => {
@@ -40,9 +40,11 @@ export const TransactionInput = ({ onTransactionsParsed }: TransactionInputProps
         return;
       }
 
+      const { transactions, saldoInicial, cerramosCon } = data;
+
       // Separar transacciones válidas de errores
-      const validTransactions = data.transactions.filter((t: any) => !t.error);
-      const errorTransactions = data.transactions.filter((t: any) => t.error);
+      const validTransactions = transactions.filter((t: any) => !t.error);
+      const errorTransactions = transactions.filter((t: any) => t.error);
 
       if (errorTransactions.length > 0) {
         setErrors(errorTransactions);
@@ -50,7 +52,10 @@ export const TransactionInput = ({ onTransactionsParsed }: TransactionInputProps
       }
 
       if (validTransactions.length > 0) {
-        onTransactionsParsed(validTransactions);
+        if (saldoInicial !== null) {
+          toast.info(`Saldo inicial detectado: $${saldoInicial}`);
+        }
+        onTransactionsParsed({ transactions: validTransactions, saldoInicial, cerramosCon });
         toast.success(`${validTransactions.length} transacción(es) procesada(s)`);
         setInput("");
       }
