@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.84.0';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,6 +13,21 @@ serve(async (req) => {
 
   try {
     const { text } = await req.json();
+    
+    // Get authorization header for user context
+    const authHeader = req.headers.get('Authorization');
+    
+    // Create Supabase client
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader ?? '' } } }
+    );
+    
+    // Fetch user's learned category mappings
+    const { data: mappings } = await supabaseClient
+      .from('categoria_mappings')
+      .select('descripcion_pattern, categoria');
     
     if (!text || typeof text !== 'string') {
       return new Response(
@@ -32,6 +48,13 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY no configurada");
     }
 
+    // Build learned mappings context
+    let mappingsContext = '';
+    if (mappings && mappings.length > 0) {
+      mappingsContext = '\n\nCATEGORÍAS APRENDIDAS (usar estas primero):\n' + 
+        mappings.map(m => `- "${m.descripcion_pattern}" → ${m.categoria}`).join('\n');
+    }
+
     const systemPrompt = `Eres un experto en analizar transacciones financieras en español. 
 Tu tarea es extraer información estructurada de entradas de texto libre.
 
@@ -41,6 +64,25 @@ Reglas de parseo:
 3. TIPO: Si empieza con "+" es ingreso. Si empieza con "-" es gasto. Si no hay signo, determina por contexto (sueldo, pago, etc = ingreso; compra, gasto, etc = gasto)
 4. DESCRIPCIÓN: El concepto principal (café, supermercado, sueldo, etc)
 5. MÉTODO DE PAGO: "tarjeta", "efectivo", u "otro". Si no se menciona, usa "otro"
+6. CATEGORÍA: Clasifica automáticamente en una de estas categorías:
+   - Alimentación & Hogar (supermercado, comida, restaurantes, café)
+   - Transporte (Uber, taxi, micro, gasolina, estacionamiento)
+   - Salud (farmacia, doctor, hospital)
+   - Entretenimiento (cine, streaming, videojuegos)
+   - Servicios (luz, agua, internet, teléfono)
+   - Educación (libros, cursos, universidad)
+   - Ropa & Accesorios (ropa, zapatos, accesorios)
+   - Ingresos (sueldo, pago, transferencia recibida)
+   - Otros (cualquier otra cosa)
+   
+   Reglas de categorización:
+   - Usa las categorías aprendidas del usuario primero (si existen)
+   - Para palabras clave comunes: "super", "walmart", "oxxo" → Alimentación & Hogar
+   - "uber", "taxi", "micro", "bus", "gasolina" → Transporte
+   - "farmacia", "doctor", "medicina" → Salud
+   - "netflix", "spotify", "cine" → Entretenimiento
+   - Si no estás seguro, usa "Otros"
+${mappingsContext}
 
 IMPORTANTE: 
 - Ignora líneas que contengan "Amanecimos con" o "Cerramos con" ya que son marcadores de saldo, NO transacciones.
@@ -81,10 +123,11 @@ Responde SOLO con JSON válido, sin markdown.`;
                       type: { type: "string", enum: ["income", "expense"] },
                       description: { type: "string", description: "Descripción de la transacción" },
                       paymentMethod: { type: "string", enum: ["card", "cash", "other"] },
+                      categoria: { type: "string", description: "Categoría de la transacción" },
                       error: { type: "boolean", description: "True si la línea es ambigua" },
                       suggestion: { type: "string", description: "Sugerencia de corrección si hay error" }
                     },
-                    required: ["date", "amount", "type", "description", "paymentMethod"]
+                    required: ["date", "amount", "type", "description", "paymentMethod", "categoria"]
                   }
                 }
               },
