@@ -146,7 +146,7 @@ const Index = () => {
         descripcion: t.description,
         monto: t.amount,
         tipo: t.type === 'income' ? 'ingreso' : 'gasto',
-        categoria: null,
+        categoria: t.categoria || null,
         metodo_pago: t.paymentMethod,
         semana_id: semana?.id,
         fuente_texto: null,
@@ -290,7 +290,9 @@ const Index = () => {
             paymentMethod: t.metodo_pago === 'tarjeta' ? 'card' as const : 
                           t.metodo_pago === 'efectivo' ? 'cash' as const : 
                           'other' as const,
+            categoria: t.categoria || undefined,
           }))} 
+          onUpdate={loadTransactions}
         />
       </div>
     </div>
