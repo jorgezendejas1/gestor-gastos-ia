@@ -1,0 +1,388 @@
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
+import { startOfWeek, endOfWeek, format } from "date-fns";
+import { es } from "date-fns/locale";
+import { Download, AlertTriangle, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+interface WeeklyDashboardProps {
+  userId: string;
+}
+
+interface WeekData {
+  saldo_inicial: number;
+  saldo_final: number;
+  ingresos_totales: number;
+  gastos_totales: number;
+  fecha_inicio: string;
+  fecha_fin: string;
+}
+
+interface CategoryData {
+  name: string;
+  value: number;
+  percentage: number;
+}
+
+interface EnvelopeData {
+  nombre: string;
+  gastado_semana: number;
+  semanal_calculado: number;
+  percentage: number;
+  isOverBudget: boolean;
+}
+
+const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+
+export const WeeklyDashboard = ({ userId }: WeeklyDashboardProps) => {
+  const [weekData, setWeekData] = useState<WeekData | null>(null);
+  const [categoryData, setCategoryData] = useState<CategoryData[]>([]);
+  const [envelopeData, setEnvelopeData] = useState<EnvelopeData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [userId]);
+
+  const loadDashboardData = async () => {
+    try {
+      const today = new Date();
+      const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
+
+      // Fetch current week data
+      const { data: semana } = await supabase
+        .from('semanas')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('fecha_inicio', format(weekStart, 'yyyy-MM-dd'))
+        .maybeSingle();
+
+      if (semana) {
+        setWeekData(semana);
+
+        // Fetch transactions for this week
+        const { data: movimientos } = await supabase
+          .from('movimientos')
+          .select('*')
+          .eq('semana_id', semana.id)
+          .eq('tipo', 'gasto');
+
+        if (movimientos) {
+          // Calculate spending by category
+          const categoryMap: Record<string, number> = {};
+          let totalGastos = 0;
+
+          movimientos.forEach((mov) => {
+            const categoria = mov.categoria || 'Sin categoría';
+            categoryMap[categoria] = (categoryMap[categoria] || 0) + Number(mov.monto);
+            totalGastos += Number(mov.monto);
+          });
+
+          const categories: CategoryData[] = Object.entries(categoryMap).map(([name, value]) => ({
+            name,
+            value,
+            percentage: (value / totalGastos) * 100,
+          })).sort((a, b) => b.value - a.value);
+
+          setCategoryData(categories);
+        }
+      }
+
+      // Fetch envelope data
+      const { data: sobres } = await supabase
+        .from('sobres')
+        .select('*')
+        .eq('user_id', userId)
+        .order('nombre');
+
+      if (sobres) {
+        const envelopes: EnvelopeData[] = sobres.map((sobre) => {
+          const gastado = Number(sobre.gastado_semana || 0);
+          const presupuesto = Number(sobre.semanal_calculado);
+          const percentage = presupuesto > 0 ? (gastado / presupuesto) * 100 : 0;
+
+          return {
+            nombre: sobre.nombre,
+            gastado_semana: gastado,
+            semanal_calculado: presupuesto,
+            percentage,
+            isOverBudget: gastado > presupuesto,
+          };
+        });
+
+        setEnvelopeData(envelopes);
+      }
+
+      setLoading(false);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      setLoading(false);
+    }
+  };
+
+  const exportToCSV = () => {
+    if (!weekData) return;
+
+    const rows = [
+      ['Reporte Semanal'],
+      ['Semana:', `${weekData.fecha_inicio} al ${weekData.fecha_fin}`],
+      [],
+      ['Resumen'],
+      ['Saldo Inicial', weekData.saldo_inicial.toFixed(2)],
+      ['Ingresos', weekData.ingresos_totales.toFixed(2)],
+      ['Gastos', weekData.gastos_totales.toFixed(2)],
+      ['Saldo Final', weekData.saldo_final.toFixed(2)],
+      [],
+      ['Gastos por Categoría'],
+      ['Categoría', 'Monto', 'Porcentaje'],
+      ...categoryData.map(cat => [cat.name, cat.value.toFixed(2), `${cat.percentage.toFixed(1)}%`]),
+      [],
+      ['Gastos por Sobre'],
+      ['Sobre', 'Gastado', 'Presupuesto', 'Porcentaje', 'Estado'],
+      ...envelopeData.map(env => [
+        env.nombre,
+        env.gastado_semana.toFixed(2),
+        env.semanal_calculado.toFixed(2),
+        `${env.percentage.toFixed(1)}%`,
+        env.isOverBudget ? 'Excedido' : 'OK'
+      ]),
+    ];
+
+    const csv = rows.map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reporte-semanal-${weekData.fecha_inicio}.csv`;
+    a.click();
+  };
+
+  const exportToPDF = () => {
+    if (!weekData) return;
+
+    const doc = new jsPDF();
+
+    // Title
+    doc.setFontSize(18);
+    doc.text('Reporte Semanal', 14, 20);
+    doc.setFontSize(12);
+    doc.text(`Semana: ${weekData.fecha_inicio} al ${weekData.fecha_fin}`, 14, 28);
+
+    // Summary
+    doc.setFontSize(14);
+    doc.text('Resumen', 14, 40);
+    autoTable(doc, {
+      startY: 45,
+      head: [['Concepto', 'Monto']],
+      body: [
+        ['Saldo Inicial', `$${weekData.saldo_inicial.toFixed(2)}`],
+        ['Ingresos', `$${weekData.ingresos_totales.toFixed(2)}`],
+        ['Gastos', `$${weekData.gastos_totales.toFixed(2)}`],
+        ['Saldo Final', `$${weekData.saldo_final.toFixed(2)}`],
+      ],
+    });
+
+    // Category breakdown
+    const finalY1 = (doc as any).lastAutoTable.finalY || 70;
+    doc.setFontSize(14);
+    doc.text('Gastos por Categoría', 14, finalY1 + 10);
+    autoTable(doc, {
+      startY: finalY1 + 15,
+      head: [['Categoría', 'Monto', 'Porcentaje']],
+      body: categoryData.map(cat => [
+        cat.name,
+        `$${cat.value.toFixed(2)}`,
+        `${cat.percentage.toFixed(1)}%`
+      ]),
+    });
+
+    // Envelope breakdown
+    const finalY2 = (doc as any).lastAutoTable.finalY || 120;
+    doc.setFontSize(14);
+    doc.text('Gastos por Sobre', 14, finalY2 + 10);
+    autoTable(doc, {
+      startY: finalY2 + 15,
+      head: [['Sobre', 'Gastado', 'Presupuesto', '%', 'Estado']],
+      body: envelopeData.map(env => [
+        env.nombre,
+        `$${env.gastado_semana.toFixed(2)}`,
+        `$${env.semanal_calculado.toFixed(2)}`,
+        `${env.percentage.toFixed(1)}%`,
+        env.isOverBudget ? 'Excedido' : 'OK'
+      ]),
+    });
+
+    doc.save(`reporte-semanal-${weekData.fecha_inicio}.pdf`);
+  };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-muted-foreground text-center">Cargando dashboard...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!weekData) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-muted-foreground text-center">No hay datos para esta semana</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const overBudgetEnvelopes = envelopeData.filter(env => env.isOverBudget);
+
+  return (
+    <div className="space-y-6">
+      {/* Alerts */}
+      {overBudgetEnvelopes.length > 0 && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <strong>¡Alerta de presupuesto!</strong> Los siguientes sobres han excedido su presupuesto semanal:
+            <ul className="mt-2 list-disc list-inside">
+              {overBudgetEnvelopes.map(env => (
+                <li key={env.nombre}>
+                  {env.nombre}: ${env.gastado_semana.toFixed(2)} / ${env.semanal_calculado.toFixed(2)} ({env.percentage.toFixed(1)}%)
+                </li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Saldo Inicial</CardTitle>
+            <Wallet className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${weekData.saldo_inicial.toFixed(2)}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ingresos</CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">${weekData.ingresos_totales.toFixed(2)}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Gastos</CardTitle>
+            <TrendingDown className="h-4 w-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">${weekData.gastos_totales.toFixed(2)}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Saldo Final</CardTitle>
+            <Wallet className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${weekData.saldo_final >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              ${weekData.saldo_final.toFixed(2)}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Category Breakdown */}
+        {categoryData.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Gastos por Categoría</CardTitle>
+              <CardDescription>Distribución de gastos por categoría esta semana</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percentage }) => `${name}: ${percentage.toFixed(1)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {categoryData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Envelope Breakdown */}
+        {envelopeData.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Gastos por Sobre</CardTitle>
+              <CardDescription>Porcentaje utilizado del presupuesto semanal</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={envelopeData.slice(0, 10)}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="nombre" angle={-45} textAnchor="end" height={100} />
+                  <YAxis />
+                  <Tooltip formatter={(value: number) => `${value.toFixed(1)}%`} />
+                  <Bar dataKey="percentage" fill="hsl(var(--primary))">
+                    {envelopeData.slice(0, 10).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.isOverBudget ? 'hsl(var(--destructive))' : 'hsl(var(--primary))'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Export Buttons */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Exportar Reporte</CardTitle>
+          <CardDescription>Descarga el reporte semanal en diferentes formatos</CardDescription>
+        </CardHeader>
+        <CardContent className="flex gap-4">
+          <Button onClick={exportToCSV} variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            Exportar CSV
+          </Button>
+          <Button onClick={exportToPDF} variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            Exportar PDF
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};

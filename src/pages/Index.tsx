@@ -3,6 +3,7 @@ import { TransactionInput } from "@/components/TransactionInput";
 import { TransactionList } from "@/components/TransactionList";
 import { WeeklySummary } from "@/components/WeeklySummary";
 import { EnvelopesList } from "@/components/EnvelopesList";
+import { WeeklyDashboard } from "@/components/WeeklyDashboard";
 import { Auth } from "@/components/Auth";
 import { Wallet, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -323,9 +324,9 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Weekly Summary */}
+        {/* Weekly Dashboard */}
         <div className="mb-6">
-          <WeeklySummary totalIncome={totalIncome} totalExpense={totalExpense} />
+          <WeeklyDashboard userId={user.id} />
         </div>
 
         {/* Envelopes */}
