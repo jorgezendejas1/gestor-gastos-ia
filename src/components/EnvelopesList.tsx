@@ -1,0 +1,181 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { Package, Plus } from "lucide-react";
+import { toast } from "sonner";
+
+interface Envelope {
+  id: string;
+  nombre: string;
+  mensual: number;
+  semanal_calculado: number;
+  gastado_semana: number;
+  restante_semana: number;
+}
+
+interface EnvelopesListProps {
+  userId: string;
+}
+
+export const EnvelopesList = ({ userId }: EnvelopesListProps) => {
+  const [envelopes, setEnvelopes] = useState<Envelope[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadEnvelopes();
+  }, [userId]);
+
+  const loadEnvelopes = async () => {
+    const { data, error } = await supabase
+      .from('sobres')
+      .select('*')
+      .order('nombre', { ascending: true });
+
+    if (error) {
+      console.error('Error loading envelopes:', error);
+      toast.error('Error al cargar sobres');
+      return;
+    }
+
+    setEnvelopes((data || []) as Envelope[]);
+    setLoading(false);
+  };
+
+  const initializeDefaultEnvelopes = async () => {
+    const defaultEnvelopes = [
+      { nombre: 'ABIX', mensual: 652 },
+      { nombre: 'ABOGADO', mensual: 3000 },
+      { nombre: 'AGUA', mensual: 500 },
+      { nombre: 'AMAZON', mensual: 100 },
+      { nombre: 'APPLE', mensual: 700 },
+      { nombre: 'BANORTE', mensual: 600 },
+      { nombre: 'BEBBIA', mensual: 380 },
+      { nombre: 'CFE', mensual: 3000 },
+      { nombre: 'COLEGIATURA MAU', mensual: 1840 },
+      { nombre: 'DISNEY', mensual: 160 },
+      { nombre: 'GASOLINA', mensual: 7400 },
+      { nombre: 'MTO ANGIE', mensual: 600 },
+      { nombre: 'MTO CARIOTA', mensual: 900 },
+      { nombre: 'MTO JARDINES', mensual: 1200 },
+      { nombre: 'NETFLIX', mensual: 500 },
+      { nombre: 'PASAJES VIC', mensual: 800 },
+      { nombre: 'RECARGAS CEL', mensual: 400 },
+      { nombre: 'SEGURO AUDI', mensual: 900 },
+      { nombre: 'SUPER', mensual: 20000 },
+      { nombre: 'TRANSPORTE LEO', mensual: 3200 },
+      { nombre: 'XBOX', mensual: 300 },
+      { nombre: 'YOUTUBE', mensual: 320 },
+      { nombre: 'ACEITE', mensual: 300 },
+      { nombre: 'ANTICONGELANTE', mensual: 200 },
+      { nombre: 'FARMACIA', mensual: 600 },
+      { nombre: 'PROPINAS', mensual: 400 },
+      { nombre: 'OTRAS', mensual: 400 },
+    ];
+
+    const sobresData = defaultEnvelopes.map(env => ({
+      user_id: userId,
+      nombre: env.nombre,
+      mensual: env.mensual,
+      semanal_calculado: Math.round((env.mensual / 4.345) * 100) / 100,
+      gastado_semana: 0,
+      restante_semana: Math.round((env.mensual / 4.345) * 100) / 100,
+    }));
+
+    const { error } = await supabase
+      .from('sobres')
+      .insert(sobresData);
+
+    if (error) {
+      console.error('Error initializing envelopes:', error);
+      toast.error('Error al inicializar sobres');
+      return;
+    }
+
+    toast.success('Sobres inicializados correctamente');
+    loadEnvelopes();
+  };
+
+  if (loading) {
+    return (
+      <Card className="p-6">
+        <div className="flex items-center justify-center">
+          <p className="text-muted-foreground">Cargando sobres...</p>
+        </div>
+      </Card>
+    );
+  }
+
+  if (envelopes.length === 0) {
+    return (
+      <Card className="p-6">
+        <div className="text-center space-y-4">
+          <Package className="h-12 w-12 text-muted-foreground mx-auto" />
+          <div>
+            <h3 className="text-lg font-semibold mb-2">No hay sobres configurados</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Inicializa tus sobres de presupuesto para comenzar a monitorear tus gastos semanales
+            </p>
+            <Button onClick={initializeDefaultEnvelopes}>
+              <Plus className="h-4 w-4 mr-2" />
+              Inicializar Sobres
+            </Button>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+        <Package className="h-6 w-6" />
+        Sobres de Presupuesto
+      </h2>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {envelopes.map((envelope) => {
+          const percentage = envelope.semanal_calculado > 0
+            ? (envelope.gastado_semana / envelope.semanal_calculado) * 100
+            : 0;
+          const isOverBudget = percentage > 100;
+
+          return (
+            <Card key={envelope.id} className="p-4 space-y-3">
+              <div className="flex justify-between items-start">
+                <h3 className="font-semibold text-sm">{envelope.nombre}</h3>
+                <span className="text-xs text-muted-foreground">
+                  ${envelope.mensual}/mes
+                </span>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Semanal</span>
+                  <span className="font-medium">
+                    ${envelope.semanal_calculado.toFixed(2)}
+                  </span>
+                </div>
+
+                <Progress 
+                  value={Math.min(percentage, 100)} 
+                  className={isOverBudget ? "bg-destructive/20" : ""}
+                />
+
+                <div className="flex justify-between text-xs">
+                  <span className={isOverBudget ? "text-destructive" : "text-muted-foreground"}>
+                    Gastado: ${envelope.gastado_semana.toFixed(2)}
+                  </span>
+                  <span className={isOverBudget ? "text-destructive font-medium" : "text-primary font-medium"}>
+                    {isOverBudget ? "Excedido" : `Restante: $${envelope.restante_semana.toFixed(2)}`}
+                  </span>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
