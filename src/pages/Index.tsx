@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { TransactionInput } from "@/components/TransactionInput";
 import { TransactionList } from "@/components/TransactionList";
 import { WeeklySummary } from "@/components/WeeklySummary";
+import { EnvelopesList } from "@/components/EnvelopesList";
 import { Auth } from "@/components/Auth";
 import { Wallet, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { startOfWeek, endOfWeek, format } from "date-fns";
 import { es } from "date-fns/locale";
+import { mapTransactionToEnvelope } from "@/utils/envelopeMapping";
 
 interface Transaction {
   id: string;
@@ -158,6 +160,9 @@ const Index = () => {
 
       if (insertError) throw insertError;
 
+      // Update envelopes for expenses
+      await updateEnvelopeSpending(parsedTransactions, semana.id);
+
       // Update week totals and check for inconsistencies
       await updateWeekTotals(semana.id, cerramosCon);
       
@@ -165,6 +170,55 @@ const Index = () => {
     } catch (error) {
       console.error('Error saving transactions:', error);
       toast.error('Error al guardar movimientos');
+    }
+  };
+
+  const updateEnvelopeSpending = async (parsedTransactions: any[], semanaId: string) => {
+    if (!user) return;
+
+    // Get all envelopes for the user
+    const { data: sobres } = await supabase
+      .from('sobres')
+      .select('*')
+      .eq('user_id', user.id);
+
+    if (!sobres || sobres.length === 0) return;
+
+    // Calculate spending per envelope this week
+    const { data: movimientos } = await supabase
+      .from('movimientos')
+      .select('*')
+      .eq('semana_id', semanaId)
+      .eq('tipo', 'gasto');
+
+    if (!movimientos) return;
+
+    // Reset all envelopes for this week
+    const envelopeSpending: Record<string, number> = {};
+    sobres.forEach(sobre => {
+      envelopeSpending[sobre.nombre] = 0;
+    });
+
+    // Calculate spending per envelope
+    movimientos.forEach((mov: any) => {
+      const envelopeName = mapTransactionToEnvelope(mov.descripcion, mov.categoria);
+      if (envelopeName && envelopeSpending[envelopeName] !== undefined) {
+        envelopeSpending[envelopeName] += Number(mov.monto);
+      }
+    });
+
+    // Update each envelope
+    for (const sobre of sobres) {
+      const gastado = envelopeSpending[sobre.nombre] || 0;
+      const restante = sobre.semanal_calculado - gastado;
+
+      await supabase
+        .from('sobres')
+        .update({
+          gastado_semana: gastado,
+          restante_semana: restante,
+        })
+        .eq('id', sobre.id);
     }
   };
 
@@ -274,13 +328,18 @@ const Index = () => {
           <WeeklySummary totalIncome={totalIncome} totalExpense={totalExpense} />
         </div>
 
+        {/* Envelopes */}
+        <div className="mb-6">
+          <EnvelopesList userId={user.id} />
+        </div>
+
         {/* Transaction Input */}
         <div className="mb-6">
           <TransactionInput onTransactionsParsed={handleTransactionsParsed} />
         </div>
 
         {/* Transaction List */}
-        <TransactionList 
+        <TransactionList
           transactions={transactions.map(t => ({
             id: t.id,
             date: t.fecha,
