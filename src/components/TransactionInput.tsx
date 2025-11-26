@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Sparkles, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { TransactionReviewModal } from "./TransactionReviewModal";
 
 interface TransactionInputProps {
   onTransactionsParsed: (data: any) => void;
@@ -15,6 +16,8 @@ export const TransactionInput = ({ onTransactionsParsed }: TransactionInputProps
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [errors, setErrors] = useState<any[]>([]);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [pendingData, setPendingData] = useState<any>(null);
 
   const handleProcess = async () => {
     if (!input.trim()) {
@@ -52,12 +55,8 @@ export const TransactionInput = ({ onTransactionsParsed }: TransactionInputProps
       }
 
       if (validTransactions.length > 0) {
-        if (saldoInicial !== null) {
-          toast.info(`Saldo inicial detectado: $${saldoInicial}`);
-        }
-        onTransactionsParsed({ transactions: validTransactions, saldoInicial, cerramosCon });
-        toast.success(`${validTransactions.length} transacción(es) procesada(s)`);
-        setInput("");
+        setPendingData({ transactions: validTransactions, saldoInicial, cerramosCon });
+        setShowReviewModal(true);
       }
       
     } catch (error) {
@@ -68,17 +67,33 @@ export const TransactionInput = ({ onTransactionsParsed }: TransactionInputProps
     }
   };
 
+  const handleConfirmTransactions = () => {
+    if (pendingData) {
+      onTransactionsParsed(pendingData);
+      toast.success(`${pendingData.transactions.length} transacción(es) guardada(s)`);
+      setInput("");
+      setShowReviewModal(false);
+      setPendingData(null);
+    }
+  };
+
+  const handleCancelReview = () => {
+    setShowReviewModal(false);
+    setPendingData(null);
+  };
+
   return (
-    <Card className="p-6 shadow-md">
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-xl font-semibold text-foreground mb-2">
-            Registra tus movimientos
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Escribe tus gastos e ingresos en texto libre. Por ejemplo: "50 supermercado tarjeta" o "2000 sueldo efectivo 15/11"
-          </p>
-        </div>
+    <>
+      <Card className="p-6 shadow-md">
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground mb-2">
+              Registra tus movimientos
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Escribe tus gastos e ingresos en texto libre. Por ejemplo: "50 supermercado tarjeta" o "2000 sueldo efectivo 15/11"
+            </p>
+          </div>
 
         {errors.length > 0 && (
           <Alert variant="destructive">
@@ -122,5 +137,17 @@ export const TransactionInput = ({ onTransactionsParsed }: TransactionInputProps
         </Button>
       </div>
     </Card>
+
+    {pendingData && (
+      <TransactionReviewModal
+        open={showReviewModal}
+        transactions={pendingData.transactions}
+        saldoInicial={pendingData.saldoInicial}
+        cerramosCon={pendingData.cerramosCon}
+        onConfirm={handleConfirmTransactions}
+        onCancel={handleCancelReview}
+      />
+    )}
+    </>
   );
 };
