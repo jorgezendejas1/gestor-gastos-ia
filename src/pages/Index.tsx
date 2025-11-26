@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { TransactionInput } from "@/components/TransactionInput";
 import { TransactionList } from "@/components/TransactionList";
 import { WeeklySummary } from "@/components/WeeklySummary";
 import { EnvelopesList } from "@/components/EnvelopesList";
 import { WeeklyDashboard } from "@/components/WeeklyDashboard";
+import { TransactionFilters, FilterState } from "@/components/TransactionFilters";
 import { Auth } from "@/components/Auth";
 import { Wallet, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,13 @@ const Index = () => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
+  const [filters, setFilters] = useState<FilterState>({
+    weekId: null,
+    categoria: null,
+    metodoPago: null,
+    searchTerm: "",
+  });
 
   useEffect(() => {
     // Check active session
@@ -78,7 +86,7 @@ const Index = () => {
       .from('movimientos')
       .select('*')
       .order('fecha', { ascending: false })
-      .limit(50);
+      .limit(100);
 
     if (error) {
       console.error('Error loading transactions:', error);
@@ -88,6 +96,35 @@ const Index = () => {
 
     setTransactions((data || []) as Transaction[]);
   };
+
+  const applyFilters = useCallback(() => {
+    let filtered = [...transactions];
+
+    if (filters.weekId) {
+      filtered = filtered.filter((t) => t.semana_id === filters.weekId);
+    }
+
+    if (filters.categoria) {
+      filtered = filtered.filter((t) => t.categoria === filters.categoria);
+    }
+
+    if (filters.metodoPago) {
+      filtered = filtered.filter((t) => t.metodo_pago === filters.metodoPago);
+    }
+
+    if (filters.searchTerm) {
+      const term = filters.searchTerm.toLowerCase();
+      filtered = filtered.filter((t) =>
+        t.descripcion.toLowerCase().includes(term)
+      );
+    }
+
+    setFilteredTransactions(filtered);
+  }, [transactions, filters]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [applyFilters]);
 
   const handleTransactionsParsed = async (parsedData: any) => {
     if (!user) {
@@ -339,9 +376,12 @@ const Index = () => {
           <TransactionInput onTransactionsParsed={handleTransactionsParsed} />
         </div>
 
+        {/* Filters */}
+        <TransactionFilters userId={user.id} onFilterChange={setFilters} />
+
         {/* Transaction List */}
         <TransactionList
-          transactions={transactions.map(t => ({
+          transactions={filteredTransactions.map(t => ({
             id: t.id,
             date: t.fecha,
             amount: Number(t.monto),
