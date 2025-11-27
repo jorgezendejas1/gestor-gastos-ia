@@ -6,6 +6,8 @@ import { EnvelopesList } from "@/components/EnvelopesList";
 import { WeeklyDashboard } from "@/components/WeeklyDashboard";
 import { AdvancedAnalytics } from "@/components/AdvancedAnalytics";
 import { TransactionFilters, FilterState } from "@/components/TransactionFilters";
+import { WeekNavigator } from "@/components/WeekNavigator";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Auth } from "@/components/Auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Wallet, LogOut } from "lucide-react";
@@ -33,6 +35,7 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
+  const [currentWeekDate, setCurrentWeekDate] = useState<Date>(new Date());
   const [filters, setFilters] = useState<FilterState>({
     weekId: null,
     categoria: null,
@@ -356,11 +359,22 @@ const Index = () => {
                 </p>
               </div>
             </div>
-            <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Salir
-            </Button>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Button variant="outline" onClick={handleLogout}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Salir
+              </Button>
+            </div>
           </div>
+        </div>
+
+        {/* Week Navigator */}
+        <div className="mb-6">
+          <WeekNavigator 
+            currentDate={currentWeekDate} 
+            onDateChange={setCurrentWeekDate}
+          />
         </div>
 
         {/* Main Content Tabs */}
