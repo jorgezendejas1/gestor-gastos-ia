@@ -4,8 +4,10 @@ import { TransactionList } from "@/components/TransactionList";
 import { WeeklySummary } from "@/components/WeeklySummary";
 import { EnvelopesList } from "@/components/EnvelopesList";
 import { WeeklyDashboard } from "@/components/WeeklyDashboard";
+import { AdvancedAnalytics } from "@/components/AdvancedAnalytics";
 import { TransactionFilters, FilterState } from "@/components/TransactionFilters";
 import { Auth } from "@/components/Auth";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Wallet, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -361,39 +363,50 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Weekly Dashboard */}
-        <div className="mb-6">
-          <WeeklyDashboard userId={user.id} />
-        </div>
+        {/* Main Content Tabs */}
+        <Tabs defaultValue="dashboard" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="dashboard">Dashboard Semanal</TabsTrigger>
+            <TabsTrigger value="analytics">Análisis y KPIs</TabsTrigger>
+            <TabsTrigger value="transactions">Movimientos</TabsTrigger>
+          </TabsList>
 
-        {/* Envelopes */}
-        <div className="mb-6">
-          <EnvelopesList userId={user.id} />
-        </div>
+          <TabsContent value="dashboard" className="space-y-6">
+            {/* Weekly Dashboard */}
+            <WeeklyDashboard userId={user.id} />
 
-        {/* Transaction Input */}
-        <div className="mb-6">
-          <TransactionInput onTransactionsParsed={handleTransactionsParsed} />
-        </div>
+            {/* Envelopes */}
+            <EnvelopesList userId={user.id} />
+          </TabsContent>
 
-        {/* Filters */}
-        <TransactionFilters userId={user.id} onFilterChange={setFilters} />
+          <TabsContent value="analytics" className="space-y-6">
+            <AdvancedAnalytics userId={user.id} />
+          </TabsContent>
 
-        {/* Transaction List */}
-        <TransactionList
-          transactions={filteredTransactions.map(t => ({
-            id: t.id,
-            date: t.fecha,
-            amount: Number(t.monto),
-            type: t.tipo === 'ingreso' ? 'income' as const : 'expense' as const,
-            description: t.descripcion,
-            paymentMethod: t.metodo_pago === 'tarjeta' ? 'card' as const : 
-                          t.metodo_pago === 'efectivo' ? 'cash' as const : 
-                          'other' as const,
-            categoria: t.categoria || undefined,
-          }))} 
-          onUpdate={loadTransactions}
-        />
+          <TabsContent value="transactions" className="space-y-6">
+            {/* Transaction Input */}
+            <TransactionInput onTransactionsParsed={handleTransactionsParsed} />
+
+            {/* Filters */}
+            <TransactionFilters userId={user.id} onFilterChange={setFilters} />
+
+            {/* Transaction List */}
+            <TransactionList
+              transactions={filteredTransactions.map(t => ({
+                id: t.id,
+                date: t.fecha,
+                amount: Number(t.monto),
+                type: t.tipo === 'ingreso' ? 'income' as const : 'expense' as const,
+                description: t.descripcion,
+                paymentMethod: t.metodo_pago === 'tarjeta' ? 'card' as const : 
+                              t.metodo_pago === 'efectivo' ? 'cash' as const : 
+                              'other' as const,
+                categoria: t.categoria || undefined,
+              }))} 
+              onUpdate={loadTransactions}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
