@@ -9,14 +9,19 @@ import { TransactionFilters, FilterState } from "@/components/TransactionFilters
 import { WeekNavigator } from "@/components/WeekNavigator";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Auth } from "@/components/Auth";
+import { UserManagement } from "@/components/UserManagement";
+import { ActiveUsers } from "@/components/ActiveUsers";
+import { PermissionGuard } from "@/components/PermissionGuard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Wallet, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { startOfWeek, endOfWeek, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { mapTransactionToEnvelope } from "@/utils/envelopeMapping";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface Transaction {
   id: string;
@@ -42,6 +47,8 @@ const Index = () => {
     metodoPago: null,
     searchTerm: "",
   });
+  
+  const { role, isAdmin, canEdit } = useUserRole(user?.id);
 
   useEffect(() => {
     // Check active session
@@ -64,8 +71,8 @@ const Index = () => {
     if (user) {
       loadTransactions();
       
-      // Real-time subscription
-      const channel = supabase
+      // Real-time subscriptions for all tables
+      const movimientosChannel = supabase
         .channel('movimientos-changes')
         .on(
           'postgres_changes',
@@ -74,12 +81,47 @@ const Index = () => {
             schema: 'public',
             table: 'movimientos'
           },
-          () => loadTransactions()
+          () => {
+            loadTransactions();
+            toast.info('Datos actualizados en tiempo real');
+          }
+        )
+        .subscribe();
+
+      const semanasChannel = supabase
+        .channel('semanas-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'semanas'
+          },
+          () => {
+            toast.info('Semanas actualizadas');
+          }
+        )
+        .subscribe();
+
+      const sobresChannel = supabase
+        .channel('sobres-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'sobres'
+          },
+          () => {
+            toast.info('Sobres actualizados');
+          }
         )
         .subscribe();
 
       return () => {
-        supabase.removeChannel(channel);
+        supabase.removeChannel(movimientosChannel);
+        supabase.removeChannel(semanasChannel);
+        supabase.removeChannel(sobresChannel);
       };
     }
   }, [user]);
@@ -379,10 +421,18 @@ const Index = () => {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="dashboard">Dashboard Semanal</TabsTrigger>
-            <TabsTrigger value="analytics">Análisis y KPIs</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="analytics">Análisis</TabsTrigger>
             <TabsTrigger value="transactions">Movimientos</TabsTrigger>
+            <TabsTrigger value="users">
+              Usuarios
+              {role && (
+                <Badge variant="outline" className="ml-2 text-xs">
+                  {role === 'admin' ? 'Admin' : role === 'editor' ? 'Editor' : 'Visor'}
+                </Badge>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard" className="space-y-6">
@@ -399,7 +449,9 @@ const Index = () => {
 
           <TabsContent value="transactions" className="space-y-6">
             {/* Transaction Input */}
-            <TransactionInput onTransactionsParsed={handleTransactionsParsed} />
+            <PermissionGuard requireEdit userId={user.id} showAlert={true}>
+              <TransactionInput onTransactionsParsed={handleTransactionsParsed} />
+            </PermissionGuard>
 
             {/* Filters */}
             <TransactionFilters userId={user.id} onFilterChange={setFilters} />
@@ -418,7 +470,18 @@ const Index = () => {
                 categoria: t.categoria || undefined,
               }))} 
               onUpdate={loadTransactions}
+              readOnly={!canEdit}
             />
+          </TabsContent>
+
+          <TabsContent value="users" className="space-y-6">
+            {/* Active Users - visible to all */}
+            <ActiveUsers />
+
+            {/* User Management - admin only */}
+            <PermissionGuard requireAdmin userId={user.id} showAlert={true}>
+              <UserManagement />
+            </PermissionGuard>
           </TabsContent>
         </Tabs>
       </div>

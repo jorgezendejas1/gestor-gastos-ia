@@ -22,7 +22,8 @@ interface Transaction {
 
 interface TransactionListProps {
   transactions: Transaction[];
-  onUpdate: () => void;
+  onUpdate?: () => void;
+  readOnly?: boolean;
 }
 
 const CATEGORIES = [
@@ -37,7 +38,7 @@ const CATEGORIES = [
   "Otros"
 ];
 
-export const TransactionList = ({ transactions, onUpdate }: TransactionListProps) => {
+export const TransactionList = ({ transactions, onUpdate, readOnly = false }: TransactionListProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCategoria, setEditCategoria] = useState("");
   const [displayCount, setDisplayCount] = useState(20);
@@ -60,7 +61,7 @@ export const TransactionList = ({ transactions, onUpdate }: TransactionListProps
     }
 
     toast.success("Transacción eliminada");
-    onUpdate();
+    onUpdate?.();
   };
 
   const handleStartEdit = (transaction: Transaction) => {
@@ -106,7 +107,7 @@ export const TransactionList = ({ transactions, onUpdate }: TransactionListProps
     }
 
     setEditingId(null);
-    onUpdate();
+    onUpdate?.();
   };
 
   const handleCancelEdit = () => {
@@ -178,14 +179,16 @@ export const TransactionList = ({ transactions, onUpdate }: TransactionListProps
                         <span className="text-sm text-muted-foreground">
                           {transaction.categoria || "Sin categoría"}
                         </span>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          onClick={() => handleStartEdit(transaction)}
-                          className="h-6 px-2"
-                        >
-                          <Edit2 className="h-3 w-3" />
-                        </Button>
+                        {!readOnly && (
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => handleStartEdit(transaction)}
+                            className="h-6 px-2"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -197,14 +200,16 @@ export const TransactionList = ({ transactions, onUpdate }: TransactionListProps
                       {transaction.type === "income" ? "+" : "-"}${Math.abs(transaction.amount).toFixed(2)}
                     </p>
                     
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleDelete(transaction.id)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {!readOnly && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDelete(transaction.id)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </Card>
