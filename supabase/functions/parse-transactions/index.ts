@@ -48,11 +48,26 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY no configurada");
     }
 
+    // Fetch user's envelopes (sobres) to use as categories
+    const { data: sobres } = await supabaseClient
+      .from('sobres')
+      .select('nombre');
+    
+    const envelopeNames = sobres?.map(s => s.nombre) || [];
+
     // Build learned mappings context
     let mappingsContext = '';
     if (mappings && mappings.length > 0) {
-      mappingsContext = '\n\nCATEGORÍAS APRENDIDAS (usar estas primero):\n' + 
+      mappingsContext = '\n\nMAPEOS APRENDIDOS (usar estos primero):\n' + 
         mappings.map(m => `- "${m.descripcion_pattern}" → ${m.categoria}`).join('\n');
+    }
+
+    // Build envelopes context
+    let envelopesContext = '\n\nSOBRES DISPONIBLES (usar estos como categorías):\n';
+    if (envelopeNames.length > 0) {
+      envelopesContext += envelopeNames.join(', ');
+    } else {
+      envelopesContext += 'SUPER, GASOLINA, UBER, TRANSPORTE LEO, PASAJES VIC, NETFLIX, DISNEY, YOUTUBE, AMAZON, APPLE, XBOX, CFE, AGUA, BANORTE, ABOGADO, COLEGIATURA MAU, MTO ANGIE, MTO CARIOTA, MTO JARDINES, FARMACIA, RECARGAS CEL, SEGURO AUDI, ACEITE, ANTICONGELANTE, BEBBIA, ABIX, PROPINAS, OTRAS';
     }
 
     const systemPrompt = `Eres un experto en analizar transacciones financieras en español. 
@@ -64,25 +79,30 @@ Reglas de parseo:
 3. TIPO: Si empieza con "+" es ingreso. Si empieza con "-" es gasto. Si no hay signo, determina por contexto (sueldo, pago, etc = ingreso; compra, gasto, etc = gasto)
 4. DESCRIPCIÓN: El concepto principal (café, supermercado, sueldo, etc)
 5. MÉTODO DE PAGO: "tarjeta", "efectivo", u "otro". Si no se menciona, usa "otro"
-6. CATEGORÍA: Clasifica automáticamente en una de estas categorías:
-   - Alimentación & Hogar (supermercado, comida, restaurantes, café)
-   - Transporte (Uber, taxi, micro, gasolina, estacionamiento)
-   - Salud (farmacia, doctor, hospital)
-   - Entretenimiento (cine, streaming, videojuegos)
-   - Servicios (luz, agua, internet, teléfono)
-   - Educación (libros, cursos, universidad)
-   - Ropa & Accesorios (ropa, zapatos, accesorios)
-   - Ingresos (sueldo, pago, transferencia recibida)
-   - Otros (cualquier otra cosa)
-   
-   Reglas de categorización:
-   - Usa las categorías aprendidas del usuario primero (si existen)
-   - Para palabras clave comunes: "super", "walmart", "oxxo" → Alimentación & Hogar
-   - "uber", "taxi", "micro", "bus", "gasolina" → Transporte
-   - "farmacia", "doctor", "medicina" → Salud
-   - "netflix", "spotify", "cine" → Entretenimiento
-   - Si no estás seguro, usa "Otros"
+6. CATEGORÍA: IMPORTANTE - Usa SOLO los nombres de sobres como categorías. Si la transacción no coincide con ningún sobre existente, usa el nombre más apropiado que pueda convertirse en un nuevo sobre.
+${envelopesContext}
 ${mappingsContext}
+
+REGLAS DE CATEGORIZACIÓN (mapear a sobres):
+- "super", "walmart", "oxxo", "soriana", "chedraui", "costco", "bodega aurrera", "comida", "restaurante" → SUPER
+- "uber", "didi", "taxi" → UBER
+- "micro", "camión", "bus", "pasaje" → PASAJES VIC (para Vic) o TRANSPORTE LEO (para Leo)
+- "gasolina", "pemex", "shell", "bp" → GASOLINA
+- "farmacia", "medicina", "doctor" → FARMACIA
+- "netflix" → NETFLIX
+- "disney" → DISNEY
+- "youtube", "youtube premium" → YOUTUBE
+- "amazon" → AMAZON
+- "apple", "app store", "icloud" → APPLE
+- "xbox", "microsoft" → XBOX
+- "luz", "cfe", "comisión federal" → CFE
+- "agua", "sistema de aguas" → AGUA
+- "banorte" → BANORTE
+- "recarga", "tiempo aire", "telcel", "at&t" → RECARGAS CEL
+- "seguro" → SEGURO AUDI
+- "colegiatura", "escuela" → COLEGIATURA MAU
+- "propina" → PROPINAS
+- Si no coincide con ninguno → OTRAS
 
 IMPORTANTE: 
 - Ignora líneas que contengan "Amanecimos con" o "Cerramos con" ya que son marcadores de saldo, NO transacciones.
