@@ -3,8 +3,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Package, Plus } from "lucide-react";
+import { Package, Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { EnvelopeEditor } from "./EnvelopeEditor";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Envelope {
   id: string;
@@ -17,11 +28,17 @@ interface Envelope {
 
 interface EnvelopesListProps {
   userId: string;
+  canEdit?: boolean;
 }
 
-export const EnvelopesList = ({ userId }: EnvelopesListProps) => {
+export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) => {
   const [envelopes, setEnvelopes] = useState<Envelope[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorMode, setEditorMode] = useState<"edit" | "create">("create");
+  const [selectedEnvelope, setSelectedEnvelope] = useState<Envelope | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [envelopeToDelete, setEnvelopeToDelete] = useState<Envelope | null>(null);
 
   useEffect(() => {
     loadEnvelopes();
@@ -97,6 +114,43 @@ export const EnvelopesList = ({ userId }: EnvelopesListProps) => {
     loadEnvelopes();
   };
 
+  const handleEdit = (envelope: Envelope) => {
+    setSelectedEnvelope(envelope);
+    setEditorMode("edit");
+    setEditorOpen(true);
+  };
+
+  const handleCreate = () => {
+    setSelectedEnvelope(null);
+    setEditorMode("create");
+    setEditorOpen(true);
+  };
+
+  const handleDeleteClick = (envelope: Envelope) => {
+    setEnvelopeToDelete(envelope);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!envelopeToDelete) return;
+
+    const { error } = await supabase
+      .from("sobres")
+      .delete()
+      .eq("id", envelopeToDelete.id);
+
+    if (error) {
+      console.error("Error deleting envelope:", error);
+      toast.error("Error al eliminar sobre");
+      return;
+    }
+
+    toast.success("Sobre eliminado");
+    setDeleteDialogOpen(false);
+    setEnvelopeToDelete(null);
+    loadEnvelopes();
+  };
+
   if (loading) {
     return (
       <Card className="p-6">
@@ -117,10 +171,18 @@ export const EnvelopesList = ({ userId }: EnvelopesListProps) => {
             <p className="text-sm text-muted-foreground mb-4">
               Inicializa tus sobres de presupuesto para comenzar a monitorear tus gastos semanales
             </p>
-            <Button onClick={initializeDefaultEnvelopes}>
-              <Plus className="h-4 w-4 mr-2" />
-              Inicializar Sobres
-            </Button>
+            {canEdit && (
+              <div className="flex gap-2 justify-center">
+                <Button onClick={initializeDefaultEnvelopes}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Inicializar Sobres
+                </Button>
+                <Button variant="outline" onClick={handleCreate}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Crear Sobre
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </Card>
@@ -129,10 +191,18 @@ export const EnvelopesList = ({ userId }: EnvelopesListProps) => {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
-        <Package className="h-6 w-6" />
-        Sobres de Presupuesto
-      </h2>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <Package className="h-6 w-6" />
+          Sobres de Presupuesto
+        </h2>
+        {canEdit && (
+          <Button onClick={handleCreate} size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Sobre
+          </Button>
+        )}
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {envelopes.map((envelope) => {
@@ -142,8 +212,29 @@ export const EnvelopesList = ({ userId }: EnvelopesListProps) => {
           const isOverBudget = percentage > 100;
 
           return (
-            <Card key={envelope.id} className="p-4 space-y-3">
-              <div className="flex justify-between items-start">
+            <Card key={envelope.id} className="p-4 space-y-3 group relative">
+              {canEdit && (
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => handleEdit(envelope)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive hover:text-destructive"
+                    onClick={() => handleDeleteClick(envelope)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+
+              <div className="flex justify-between items-start pr-16">
                 <h3 className="font-semibold text-sm">{envelope.nombre}</h3>
                 <span className="text-xs text-muted-foreground">
                   ${envelope.mensual}/mes
@@ -176,6 +267,35 @@ export const EnvelopesList = ({ userId }: EnvelopesListProps) => {
           );
         })}
       </div>
+
+      <EnvelopeEditor
+        envelope={selectedEnvelope}
+        isOpen={editorOpen}
+        onClose={() => setEditorOpen(false)}
+        onSave={loadEnvelopes}
+        userId={userId}
+        mode={editorMode}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar sobre?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de eliminar el sobre "{envelopeToDelete?.nombre}"? Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
