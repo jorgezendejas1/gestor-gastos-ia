@@ -226,6 +226,39 @@ const Index = () => {
           .eq('id', semana.id);
       }
 
+      // Check for new categories that don't exist as sobres and create them
+      const { data: existingSobres } = await supabase
+        .from('sobres')
+        .select('nombre')
+        .eq('user_id', user.id);
+
+      const existingNames = new Set(existingSobres?.map(s => s.nombre.toUpperCase()) || []);
+      const newCategories = new Set<string>();
+
+      parsedTransactions.forEach((t: any) => {
+        if (t.categoria && t.type !== 'income') {
+          const catUpper = t.categoria.toUpperCase();
+          if (!existingNames.has(catUpper) && catUpper !== 'INGRESOS') {
+            newCategories.add(catUpper);
+          }
+        }
+      });
+
+      // Create new sobres for new categories
+      if (newCategories.size > 0) {
+        const newSobres = Array.from(newCategories).map(nombre => ({
+          user_id: user.id,
+          nombre,
+          mensual: 500, // Default monthly budget
+          semanal_calculado: Math.round((500 / 4.345) * 100) / 100,
+          gastado_semana: 0,
+          restante_semana: Math.round((500 / 4.345) * 100) / 100,
+        }));
+
+        await supabase.from('sobres').insert(newSobres);
+        toast.info(`${newCategories.size} sobre(s) nuevo(s) creado(s): ${Array.from(newCategories).join(', ')}`);
+      }
+
       // Insert transactions
       const movimientos = parsedTransactions.map((t: any) => ({
         user_id: user.id,
@@ -233,7 +266,7 @@ const Index = () => {
         descripcion: t.description,
         monto: t.amount,
         tipo: t.type === 'income' ? 'ingreso' : 'gasto',
-        categoria: t.categoria || null,
+        categoria: t.categoria?.toUpperCase() || null,
         metodo_pago: t.paymentMethod,
         semana_id: semana?.id,
         fuente_texto: null,
@@ -420,11 +453,11 @@ const Index = () => {
         </div>
 
         {/* Main Content Tabs */}
-        <Tabs defaultValue="dashboard" className="space-y-6">
+        <Tabs defaultValue="transactions" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="transactions">Movimientos</TabsTrigger>
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="analytics">Análisis</TabsTrigger>
-            <TabsTrigger value="transactions">Movimientos</TabsTrigger>
             <TabsTrigger value="users">
               Usuarios
               {role && (
@@ -434,18 +467,6 @@ const Index = () => {
               )}
             </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="dashboard" className="space-y-6">
-            {/* Weekly Dashboard */}
-            <WeeklyDashboard userId={user.id} />
-
-            {/* Envelopes */}
-            <EnvelopesList userId={user.id} canEdit={canEdit} />
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-6">
-            <AdvancedAnalytics userId={user.id} />
-          </TabsContent>
 
           <TabsContent value="transactions" className="space-y-6">
             {/* Transaction Input */}
@@ -472,6 +493,18 @@ const Index = () => {
               onUpdate={loadTransactions}
               readOnly={!canEdit}
             />
+          </TabsContent>
+
+          <TabsContent value="dashboard" className="space-y-6">
+            {/* Weekly Dashboard */}
+            <WeeklyDashboard userId={user.id} />
+
+            {/* Envelopes */}
+            <EnvelopesList userId={user.id} canEdit={canEdit} />
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-6">
+            <AdvancedAnalytics userId={user.id} />
           </TabsContent>
 
           <TabsContent value="users" className="space-y-6">

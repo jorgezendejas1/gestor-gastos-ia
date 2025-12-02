@@ -33,8 +33,12 @@ interface EnvelopeData {
   nombre: string;
   gastado_semana: number;
   semanal_calculado: number;
+  mensual: number;
+  gastado_mensual: number;
   percentage: number;
+  percentageMensual: number;
   isOverBudget: boolean;
+  isMonthlyExhausted: boolean;
 }
 
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
@@ -94,7 +98,7 @@ export const WeeklyDashboard = ({ userId }: WeeklyDashboardProps) => {
         }
       }
 
-      // Fetch envelope data
+      // Fetch envelope data with monthly spending calculation
       const { data: sobres } = await supabase
         .from('sobres')
         .select('*')
@@ -102,17 +106,47 @@ export const WeeklyDashboard = ({ userId }: WeeklyDashboardProps) => {
         .order('nombre');
 
       if (sobres) {
+        // Get current month's start and end dates
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+        // Fetch all transactions for current month to calculate monthly spending per envelope
+        const { data: monthlyMovimientos } = await supabase
+          .from('movimientos')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('tipo', 'gasto')
+          .gte('fecha', format(monthStart, 'yyyy-MM-dd'))
+          .lte('fecha', format(monthEnd, 'yyyy-MM-dd'));
+
+        // Calculate monthly spending per envelope
+        const monthlySpendingByEnvelope: Record<string, number> = {};
+        if (monthlyMovimientos) {
+          monthlyMovimientos.forEach((mov) => {
+            const categoria = mov.categoria || 'OTRAS';
+            monthlySpendingByEnvelope[categoria] = (monthlySpendingByEnvelope[categoria] || 0) + Number(mov.monto);
+          });
+        }
+
         const envelopes: EnvelopeData[] = sobres.map((sobre) => {
           const gastado = Number(sobre.gastado_semana || 0);
           const presupuesto = Number(sobre.semanal_calculado);
+          const mensual = Number(sobre.mensual);
+          const gastadoMensual = monthlySpendingByEnvelope[sobre.nombre] || 0;
           const percentage = presupuesto > 0 ? (gastado / presupuesto) * 100 : 0;
+          const percentageMensual = mensual > 0 ? (gastadoMensual / mensual) * 100 : 0;
 
           return {
             nombre: sobre.nombre,
             gastado_semana: gastado,
             semanal_calculado: presupuesto,
+            mensual,
+            gastado_mensual: gastadoMensual,
             percentage,
+            percentageMensual,
             isOverBudget: gastado > presupuesto,
+            isMonthlyExhausted: gastadoMensual >= mensual,
           };
         });
 
@@ -241,16 +275,34 @@ export const WeeklyDashboard = ({ userId }: WeeklyDashboardProps) => {
     );
   }
 
-  const overBudgetEnvelopes = envelopeData.filter(env => env.isOverBudget);
+  const overBudgetEnvelopes = envelopeData.filter(env => env.isOverBudget && !env.isMonthlyExhausted);
+  const monthlyExhaustedEnvelopes = envelopeData.filter(env => env.isMonthlyExhausted);
 
   return (
     <div className="space-y-6">
-      {/* Alerts */}
+      {/* Monthly Exhausted Alerts - Higher Priority */}
+      {monthlyExhaustedEnvelopes.length > 0 && (
+        <Alert variant="destructive" className="border-2 border-destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <strong>🚨 ¡PRESUPUESTO MENSUAL AGOTADO!</strong> Los siguientes sobres han consumido TODO su presupuesto del mes:
+            <ul className="mt-2 list-disc list-inside">
+              {monthlyExhaustedEnvelopes.map(env => (
+                <li key={env.nombre}>
+                  <strong>{env.nombre}</strong>: ${env.gastado_mensual.toFixed(2)} / ${env.mensual.toFixed(2)} mensual ({env.percentageMensual.toFixed(1)}%)
+                </li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Weekly Over Budget Alerts */}
       {overBudgetEnvelopes.length > 0 && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            <strong>¡Alerta de presupuesto!</strong> Los siguientes sobres han excedido su presupuesto semanal:
+            <strong>¡Alerta semanal!</strong> Los siguientes sobres han excedido su presupuesto semanal:
             <ul className="mt-2 list-disc list-inside">
               {overBudgetEnvelopes.map(env => (
                 <li key={env.nombre}>
