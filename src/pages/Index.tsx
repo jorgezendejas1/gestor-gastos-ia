@@ -440,7 +440,7 @@ const Index = () => {
             <WeeklyDashboard userId={user.id} />
 
             {/* Envelopes */}
-            <EnvelopesList userId={user.id} />
+            <EnvelopesList userId={user.id} canEdit={canEdit} />
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6">
