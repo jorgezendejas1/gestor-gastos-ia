@@ -1,14 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Edit2, Check, X } from "lucide-react";
+import { Trash2, Edit2 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { useState, useMemo } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState, useMemo, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { TransactionEditDialog } from "./TransactionEditDialog";
 
 interface Transaction {
   id: string;
@@ -26,22 +26,29 @@ interface TransactionListProps {
   readOnly?: boolean;
 }
 
-const CATEGORIES = [
-  "Alimentación & Hogar",
-  "Transporte",
-  "Salud",
-  "Entretenimiento",
-  "Servicios",
-  "Educación",
-  "Ropa & Accesorios",
-  "Ingresos",
-  "Otros"
-];
-
 export const TransactionList = ({ transactions, onUpdate, readOnly = false }: TransactionListProps) => {
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editCategoria, setEditCategoria] = useState("");
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [displayCount, setDisplayCount] = useState(20);
+  const [envelopes, setEnvelopes] = useState<string[]>([]);
+
+  useEffect(() => {
+    loadEnvelopes();
+  }, []);
+
+  const loadEnvelopes = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: sobres } = await supabase
+      .from('sobres')
+      .select('nombre')
+      .eq('user_id', user.id)
+      .order('nombre');
+
+    if (sobres) {
+      setEnvelopes(sobres.map(s => s.nombre));
+    }
+  };
 
   const displayedTransactions = useMemo(() => {
     return transactions.slice(0, displayCount);
@@ -50,6 +57,13 @@ export const TransactionList = ({ transactions, onUpdate, readOnly = false }: Tr
   const hasMore = transactions.length > displayCount;
 
   const handleDelete = async (id: string) => {
+    // Get transaction details before deleting
+    const transaction = transactions.find(t => t.id === id);
+    if (!transaction) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const { error } = await supabase
       .from('movimientos')
       .delete()
@@ -60,59 +74,42 @@ export const TransactionList = ({ transactions, onUpdate, readOnly = false }: Tr
       return;
     }
 
+    // Update envelope spending if it was an expense with a category
+    if (transaction.type === "expense" && transaction.categoria) {
+      const { data: sobre } = await supabase
+        .from('sobres')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('nombre', transaction.categoria)
+        .maybeSingle();
+
+      if (sobre) {
+        const newGastado = Math.max(0, Number(sobre.gastado_semana) - transaction.amount);
+        await supabase
+          .from('sobres')
+          .update({ 
+            gastado_semana: newGastado,
+            restante_semana: Number(sobre.semanal_calculado) - newGastado
+          })
+          .eq('id', sobre.id);
+      }
+    }
+
     toast.success("Transacción eliminada");
     onUpdate?.();
   };
 
   const handleStartEdit = (transaction: Transaction) => {
-    setEditingId(transaction.id);
-    setEditCategoria(transaction.categoria || "");
+    setEditingTransaction(transaction);
   };
 
-  const handleSaveEdit = async (id: string, originalCategoria: string | undefined, description: string) => {
-    const { error } = await supabase
-      .from('movimientos')
-      .update({ categoria: editCategoria })
-      .eq('id', id);
+  const handleCloseEdit = () => {
+    setEditingTransaction(null);
+  };
 
-    if (error) {
-      toast.error("Error al actualizar la categoría");
-      return;
-    }
-
-    // Learn from the correction if category changed
-    if (editCategoria !== originalCategoria) {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        const { error: learningError } = await supabase
-          .from('categoria_mappings')
-          .insert({
-            user_id: user.id,
-            descripcion_pattern: description.toLowerCase(),
-            categoria: editCategoria
-          });
-
-        if (!learningError) {
-          toast.success("Categoría actualizada y aprendida");
-        } else {
-          toast.success("Categoría actualizada");
-        }
-      } else {
-        toast.success("Categoría actualizada");
-      }
-    } else {
-      toast.success("Categoría actualizada");
-    }
-
-    setEditingId(null);
+  const handleSaveEdit = () => {
+    loadEnvelopes(); // Reload envelopes in case a new one was created
     onUpdate?.();
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditCategoria("");
   };
 
   if (transactions.length === 0) {
@@ -153,44 +150,21 @@ export const TransactionList = ({ transactions, onUpdate, readOnly = false }: Tr
                     
                     <p className="font-medium">{transaction.description}</p>
                     
-                    {editingId === transaction.id ? (
-                      <div className="flex items-center gap-2 mt-2">
-                        <Select value={editCategoria} onValueChange={setEditCategoria}>
-                          <SelectTrigger className="w-[200px]">
-                            <SelectValue placeholder="Seleccionar categoría" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {CATEGORIES.map((cat) => (
-                              <SelectItem key={cat} value={cat}>
-                                {cat}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Button size="sm" variant="ghost" onClick={() => handleSaveEdit(transaction.id, transaction.categoria, transaction.description)}>
-                          <Check className="h-4 w-4" />
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {transaction.categoria || "Sin categoría"}
+                      </span>
+                      {!readOnly && (
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={() => handleStartEdit(transaction)}
+                          className="h-6 px-2"
+                        >
+                          <Edit2 className="h-3 w-3" />
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={handleCancelEdit}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">
-                          {transaction.categoria || "Sin categoría"}
-                        </span>
-                        {!readOnly && (
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            onClick={() => handleStartEdit(transaction)}
-                            className="h-6 px-2"
-                          >
-                            <Edit2 className="h-3 w-3" />
-                          </Button>
-                        )}
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                   
                   <div className="text-right space-y-2">
@@ -229,6 +203,14 @@ export const TransactionList = ({ transactions, onUpdate, readOnly = false }: Tr
           </div>
         )}
       </CardContent>
+
+      <TransactionEditDialog
+        transaction={editingTransaction}
+        open={!!editingTransaction}
+        onClose={handleCloseEdit}
+        onSave={handleSaveEdit}
+        envelopes={envelopes}
+      />
     </Card>
   );
 };

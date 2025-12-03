@@ -22,6 +22,7 @@ import { startOfWeek, endOfWeek, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { mapTransactionToEnvelope } from "@/utils/envelopeMapping";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useWeeklyReset } from "@/hooks/useWeeklyReset";
 
 interface Transaction {
   id: string;
@@ -49,6 +50,9 @@ const Index = () => {
   });
   
   const { role, isAdmin, canEdit } = useUserRole(user?.id);
+  
+  // Auto-reset envelopes at start of new week
+  useWeeklyReset(user?.id);
 
   useEffect(() => {
     // Check active session
