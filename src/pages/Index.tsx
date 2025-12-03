@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { TransactionInput } from "@/components/TransactionInput";
 import { TransactionList } from "@/components/TransactionList";
 import { WeeklySummary } from "@/components/WeeklySummary";
+import { DailySummary } from "@/components/DailySummary";
 import { EnvelopesList } from "@/components/EnvelopesList";
 import { WeeklyDashboard } from "@/components/WeeklyDashboard";
 import { AdvancedAnalytics } from "@/components/AdvancedAnalytics";
@@ -42,6 +43,7 @@ const Index = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [currentWeekDate, setCurrentWeekDate] = useState<Date>(new Date());
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [filters, setFilters] = useState<FilterState>({
     weekId: null,
     categoria: null,
@@ -53,6 +55,11 @@ const Index = () => {
   
   // Auto-reset envelopes at start of new week
   useWeeklyReset(user?.id);
+
+  // Función para forzar actualización de todos los componentes
+  const triggerRefresh = useCallback(() => {
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
 
   useEffect(() => {
     // Check active session
@@ -75,7 +82,7 @@ const Index = () => {
     if (user) {
       loadTransactions();
       
-      // Real-time subscriptions for all tables
+      // Real-time subscriptions for all tables - actualizar todo cuando cambien los datos
       const movimientosChannel = supabase
         .channel('movimientos-changes')
         .on(
@@ -87,6 +94,7 @@ const Index = () => {
           },
           () => {
             loadTransactions();
+            triggerRefresh();
             toast.info('Datos actualizados en tiempo real');
           }
         )
@@ -102,6 +110,7 @@ const Index = () => {
             table: 'semanas'
           },
           () => {
+            triggerRefresh();
             toast.info('Semanas actualizadas');
           }
         )
@@ -117,6 +126,7 @@ const Index = () => {
             table: 'sobres'
           },
           () => {
+            triggerRefresh();
             toast.info('Sobres actualizados');
           }
         )
@@ -128,7 +138,7 @@ const Index = () => {
         supabase.removeChannel(sobresChannel);
       };
     }
-  }, [user]);
+  }, [user, triggerRefresh]);
 
   const loadTransactions = async () => {
     if (!user) return;
@@ -287,6 +297,9 @@ const Index = () => {
 
       // Update week totals and check for inconsistencies
       await updateWeekTotals(semana.id, cerramosCon);
+      
+      // Trigger refresh of all components
+      triggerRefresh();
       
       toast.success(`${movimientos.length} movimiento(s) guardado(s)`);
     } catch (error) {
@@ -449,10 +462,19 @@ const Index = () => {
         </div>
 
         {/* Week Navigator */}
-        <div className="mb-6">
+        <div className="mb-4">
           <WeekNavigator 
             currentDate={currentWeekDate} 
             onDateChange={setCurrentWeekDate}
+          />
+        </div>
+
+        {/* Daily Summary - Tarjetas de resumen diario */}
+        <div className="mb-6">
+          <DailySummary 
+            userId={user.id} 
+            selectedDate={currentWeekDate}
+            refreshTrigger={refreshTrigger}
           />
         </div>
 
@@ -494,21 +516,24 @@ const Index = () => {
                               'other' as const,
                 categoria: t.categoria || undefined,
               }))} 
-              onUpdate={loadTransactions}
+              onUpdate={() => {
+                loadTransactions();
+                triggerRefresh();
+              }}
               readOnly={!canEdit}
             />
           </TabsContent>
 
           <TabsContent value="dashboard" className="space-y-6">
             {/* Weekly Dashboard */}
-            <WeeklyDashboard userId={user.id} />
+            <WeeklyDashboard userId={user.id} key={refreshTrigger} />
 
             {/* Envelopes */}
-            <EnvelopesList userId={user.id} canEdit={canEdit} />
+            <EnvelopesList userId={user.id} canEdit={canEdit} key={`envelopes-${refreshTrigger}`} />
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6">
-            <AdvancedAnalytics userId={user.id} />
+            <AdvancedAnalytics userId={user.id} key={`analytics-${refreshTrigger}`} />
           </TabsContent>
 
           <TabsContent value="users" className="space-y-6">
