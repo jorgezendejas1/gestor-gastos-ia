@@ -70,23 +70,63 @@ serve(async (req) => {
       envelopesContext += 'SUPER, GASOLINA, UBER, TRANSPORTE LEO, PASAJES VIC, NETFLIX, DISNEY, YOUTUBE, AMAZON, APPLE, XBOX, CFE, AGUA, BANORTE, ABOGADO, COLEGIATURA MAU, MTO ANGIE, MTO CARIOTA, MTO JARDINES, FARMACIA, RECARGAS CEL, SEGURO AUDI, ACEITE, ANTICONGELANTE, BEBBIA, ABIX, PROPINAS, OTRAS';
     }
 
+    // Get current date in Mexico timezone
+    const today = new Date();
+    const mexicoDate = today.toLocaleDateString('es-MX', { 
+      timeZone: 'America/Mexico_City',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    const currentYear = today.getFullYear();
+    const todayISO = today.toISOString().split('T')[0];
+
     const systemPrompt = `Eres un experto en analizar transacciones financieras en español. 
 Tu tarea es extraer información estructurada de entradas de texto libre.
 
+FECHA ACTUAL: ${todayISO} (Hoy es ${mexicoDate}, año ${currentYear})
+
 Reglas de parseo:
-1. FECHA: Si no hay fecha explícita, usa la fecha de hoy. Formatos: "dd/mm", "dd/mm/yyyy", "hoy", "ayer"
+1. FECHA: 
+   - Si no hay fecha explícita, usa EXACTAMENTE "${todayISO}" (hoy)
+   - Si dice "ayer", resta un día a la fecha actual
+   - Si el formato es "dd/mm" SIN año, SIEMPRE usa el año ${currentYear}
+   - Si el formato es "dd/mm/yyyy", respeta el año indicado
+   - NUNCA uses años anteriores a ${currentYear} a menos que esté explícitamente escrito
+   - Formato de salida: YYYY-MM-DD (ISO 8601)
+
 2. MONTO: Extrae números con o sin decimales. Acepta "," o "." como separador decimal. Normaliza a decimal con punto.
-3. TIPO: Si empieza con "+" es ingreso. Si empieza con "-" es gasto. Si no hay signo, determina por contexto (sueldo, pago, etc = ingreso; compra, gasto, etc = gasto)
-4. DESCRIPCIÓN: El concepto principal (café, supermercado, sueldo, etc)
+
+3. TIPO (MUY IMPORTANTE - Detectar correctamente):
+   - INGRESOS: sueldo, quincena, nómina, salario, pago recibido, cobro, venta, reembolso, devolución, transferencia recibida, depósito, regalo recibido, bono, comisión ganada, renta cobrada, intereses ganados, ahorros recibidos, préstamo recibido, "me pagaron", "me depositaron", "recibí"
+   - GASTOS: compra, pago, gasto, café, comida, uber, taxi, super, gasolina, recarga, servicio, suscripción, renta pagada, "pagué", "gasté", "compré"
+   - Si empieza con "+" es ingreso
+   - Si empieza con "-" es gasto
+   - Por defecto, asume GASTO si no es claramente un ingreso
+
+4. DESCRIPCIÓN: El concepto principal limpio (café, supermercado, sueldo, etc)
+
 5. MÉTODO DE PAGO: "tarjeta", "efectivo", u "otro". Si no se menciona, usa "otro"
-6. CATEGORÍA: IMPORTANTE - Usa SOLO los nombres de sobres como categorías. Si la transacción no coincide con ningún sobre existente, usa el nombre más apropiado que pueda convertirse en un nuevo sobre.
+
+6. CATEGORÍA: 
+   - Para GASTOS: Usa los nombres de sobres disponibles
+   - Para INGRESOS: Usa las categorías de ingresos
 ${envelopesContext}
+
+CATEGORÍAS DE INGRESOS (usar para type="income"):
+- SUELDO: sueldo, quincena, nómina, salario, pago de trabajo
+- BONOS: bono, aguinaldo, premio, incentivo
+- VENTAS: venta, vendí, cobro por servicio
+- REEMBOLSOS: reembolso, devolución, me regresaron
+- INTERESES: intereses, rendimientos, dividendos
+- REGALOS: regalo, me dieron, cumpleaños
+- OTROS INGRESOS: cualquier otro ingreso no clasificado
 ${mappingsContext}
 
-REGLAS DE CATEGORIZACIÓN (mapear a sobres):
+REGLAS DE CATEGORIZACIÓN PARA GASTOS (mapear a sobres):
 - "super", "walmart", "oxxo", "soriana", "chedraui", "costco", "bodega aurrera", "comida", "restaurante" → SUPER
 - "uber", "didi", "taxi" → UBER
-- "micro", "camión", "bus", "pasaje" → PASAJES VIC (para Vic) o TRANSPORTE LEO (para Leo)
+- "micro", "camión", "bus", "pasaje" → PASAJES VIC o TRANSPORTE LEO
 - "gasolina", "pemex", "shell", "bp" → GASOLINA
 - "farmacia", "medicina", "doctor" → FARMACIA
 - "netflix" → NETFLIX
@@ -107,6 +147,7 @@ REGLAS DE CATEGORIZACIÓN (mapear a sobres):
 IMPORTANTE: 
 - Ignora líneas que contengan "Amanecimos con" o "Cerramos con" ya que son marcadores de saldo, NO transacciones.
 - Si una línea es ambigua o no se puede parsear con confianza, devuelve un error con sugerencia.
+- SIEMPRE verifica que el año sea ${currentYear} a menos que se indique explícitamente otro año.
 
 Responde SOLO con JSON válido, sin markdown.`;
 
