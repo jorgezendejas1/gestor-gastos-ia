@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle2, XCircle, Calendar, CreditCard, Tag } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CheckCircle2, XCircle, Calendar, CreditCard, Tag, Edit2, Wallet } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ParsedTransaction {
   date: string;
@@ -21,6 +26,13 @@ interface ParsedTransaction {
   categoria?: string;
 }
 
+interface EnvelopeInfo {
+  nombre: string;
+  gastado_semana: number;
+  semanal_calculado: number;
+  mensual: number;
+}
+
 interface TransactionReviewModalProps {
   open: boolean;
   transactions: ParsedTransaction[];
@@ -28,7 +40,18 @@ interface TransactionReviewModalProps {
   cerramosCon: number | null;
   onConfirm: () => void;
   onCancel: () => void;
+  onTransactionsChange?: (transactions: ParsedTransaction[]) => void;
 }
+
+const INCOME_CATEGORIES = [
+  "SUELDO",
+  "BONOS", 
+  "VENTAS",
+  "REEMBOLSOS",
+  "INTERESES",
+  "REGALOS",
+  "OTROS INGRESOS"
+];
 
 export const TransactionReviewModal = ({
   open,
@@ -37,12 +60,54 @@ export const TransactionReviewModal = ({
   cerramosCon,
   onConfirm,
   onCancel,
+  onTransactionsChange,
 }: TransactionReviewModalProps) => {
-  const totalIngresos = transactions
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [envelopes, setEnvelopes] = useState<EnvelopeInfo[]>([]);
+  const [localTransactions, setLocalTransactions] = useState<ParsedTransaction[]>(transactions);
+
+  useEffect(() => {
+    setLocalTransactions(transactions);
+    loadEnvelopes();
+  }, [transactions]);
+
+  const loadEnvelopes = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: sobres } = await supabase
+      .from('sobres')
+      .select('nombre, gastado_semana, semanal_calculado, mensual')
+      .eq('user_id', user.id)
+      .order('nombre');
+
+    if (sobres) {
+      setEnvelopes(sobres as EnvelopeInfo[]);
+    }
+  };
+
+  const getEnvelopeInfo = (categoria: string | undefined): EnvelopeInfo | null => {
+    if (!categoria) return null;
+    return envelopes.find(e => e.nombre === categoria) || null;
+  };
+
+  const updateTransaction = (index: number, updates: Partial<ParsedTransaction>) => {
+    const newTransactions = [...localTransactions];
+    newTransactions[index] = { ...newTransactions[index], ...updates };
+    setLocalTransactions(newTransactions);
+    onTransactionsChange?.(newTransactions);
+  };
+
+  const handleConfirm = () => {
+    onTransactionsChange?.(localTransactions);
+    onConfirm();
+  };
+
+  const totalIngresos = localTransactions
     .filter((t) => t.type === "income")
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const totalGastos = transactions
+  const totalGastos = localTransactions
     .filter((t) => t.type === "expense")
     .reduce((sum, t) => sum + t.amount, 0);
 
@@ -52,18 +117,25 @@ export const TransactionReviewModal = ({
     other: "Otro",
   };
 
+  const getCategoriesForType = (type: "income" | "expense") => {
+    if (type === "income") {
+      return INCOME_CATEGORIES;
+    }
+    return envelopes.map(e => e.nombre);
+  };
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onCancel()}>
-      <DialogContent className="max-w-2xl max-h-[80vh]">
+      <DialogContent className="max-w-2xl max-h-[85vh]">
         <DialogHeader>
           <DialogTitle>Revisar movimientos detectados</DialogTitle>
           <DialogDescription>
-            Se encontraron {transactions.length} movimiento(s). Revisa los
-            detalles antes de guardar.
+            Se encontraron {localTransactions.length} movimiento(s). Revisa los
+            detalles antes de guardar. Haz clic en el lápiz para editar.
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[50vh] pr-4">
+        <ScrollArea className="max-h-[55vh] pr-4">
           <div className="space-y-4">
             {saldoInicial !== null && (
               <div className="bg-muted/50 p-3 rounded-lg">
@@ -109,61 +181,186 @@ export const TransactionReviewModal = ({
             <Separator />
 
             <div className="space-y-2">
-              {transactions.map((transaction, idx) => (
-                <div
-                  key={idx}
-                  className="border border-border rounded-lg p-3 hover:bg-muted/30 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-2">
-                        {transaction.type === "income" ? (
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        ) : (
-                          <XCircle className="h-4 w-4 text-red-600" />
-                        )}
-                        <span className="font-medium text-sm">
-                          {transaction.description}
-                        </span>
-                      </div>
+              {localTransactions.map((transaction, idx) => {
+                const envelopeInfo = getEnvelopeInfo(transaction.categoria);
+                const isEditing = editingIndex === idx;
 
-                      <div className="flex flex-wrap gap-2 text-xs">
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          {new Date(transaction.date).toLocaleDateString(
-                            "es-MX"
+                return (
+                  <div
+                    key={idx}
+                    className="border border-border rounded-lg p-3 hover:bg-muted/30 transition-colors"
+                  >
+                    {isEditing ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs">Fecha</Label>
+                            <Input
+                              type="date"
+                              value={transaction.date}
+                              onChange={(e) => updateTransaction(idx, { date: e.target.value })}
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">Monto</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={transaction.amount}
+                              onChange={(e) => updateTransaction(idx, { amount: parseFloat(e.target.value) || 0 })}
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Descripción</Label>
+                          <Input
+                            value={transaction.description}
+                            onChange={(e) => updateTransaction(idx, { description: e.target.value })}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <Label className="text-xs">Tipo</Label>
+                            <Select 
+                              value={transaction.type} 
+                              onValueChange={(v) => updateTransaction(idx, { 
+                                type: v as "income" | "expense",
+                                categoria: v === "income" ? "OTROS INGRESOS" : "OTRAS"
+                              })}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="expense">Gasto</SelectItem>
+                                <SelectItem value="income">Ingreso</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Método</Label>
+                            <Select 
+                              value={transaction.paymentMethod} 
+                              onValueChange={(v) => updateTransaction(idx, { paymentMethod: v as "card" | "cash" | "other" })}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="card">Tarjeta</SelectItem>
+                                <SelectItem value="cash">Efectivo</SelectItem>
+                                <SelectItem value="other">Otro</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Categoría</Label>
+                            <Select 
+                              value={transaction.categoria || ""} 
+                              onValueChange={(v) => updateTransaction(idx, { categoria: v })}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="Seleccionar" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {getCategoriesForType(transaction.type).map((cat) => (
+                                  <SelectItem key={cat} value={cat}>
+                                    {cat}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          onClick={() => setEditingIndex(null)}
+                          className="w-full"
+                        >
+                          Listo
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2">
+                            {transaction.type === "income" ? (
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-red-600" />
+                            )}
+                            <span className="font-medium text-sm">
+                              {transaction.description}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setEditingIndex(idx)}
+                              className="h-6 w-6 p-0 ml-1"
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2 text-xs">
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(transaction.date).toLocaleDateString("es-MX")}
+                            </div>
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <CreditCard className="h-3 w-3" />
+                              {paymentMethodLabels[transaction.paymentMethod]}
+                            </div>
+                            {transaction.categoria && (
+                              <div className="flex items-center gap-1">
+                                <Tag className="h-3 w-3 text-primary" />
+                                <Badge variant="secondary" className="text-xs">
+                                  {transaction.categoria}
+                                </Badge>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Información del sobre para gastos */}
+                          {transaction.type === "expense" && envelopeInfo && (
+                            <div className="flex items-center gap-3 text-xs bg-muted/50 p-2 rounded mt-1">
+                              <Wallet className="h-3 w-3 text-primary" />
+                              <span>
+                                <span className="text-muted-foreground">Gastado:</span>{" "}
+                                <span className="font-medium">${envelopeInfo.gastado_semana.toFixed(2)}</span>
+                              </span>
+                              <span>
+                                <span className="text-muted-foreground">Semanal:</span>{" "}
+                                <span className="font-medium">${envelopeInfo.semanal_calculado.toFixed(2)}</span>
+                              </span>
+                              <span>
+                                <span className="text-muted-foreground">Mensual:</span>{" "}
+                                <span className="font-medium">${envelopeInfo.mensual.toFixed(2)}</span>
+                              </span>
+                            </div>
                           )}
                         </div>
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <CreditCard className="h-3 w-3" />
-                          {paymentMethodLabels[transaction.paymentMethod]}
-                        </div>
-                        {transaction.categoria && (
-                          <div className="flex items-center gap-1">
-                            <Tag className="h-3 w-3 text-primary" />
-                            <Badge variant="secondary" className="text-xs">
-                              {transaction.categoria}
-                            </Badge>
-                          </div>
-                        )}
-                      </div>
-                    </div>
 
-                    <div className="text-right">
-                      <p
-                        className={`text-lg font-bold ${
-                          transaction.type === "income"
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {transaction.type === "income" ? "+" : "-"}$
-                        {transaction.amount.toFixed(2)}
-                      </p>
-                    </div>
+                        <div className="text-right">
+                          <p
+                            className={`text-lg font-bold ${
+                              transaction.type === "income"
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
+                          >
+                            {transaction.type === "income" ? "+" : "-"}$
+                            {transaction.amount.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </ScrollArea>
@@ -172,8 +369,8 @@ export const TransactionReviewModal = ({
           <Button variant="outline" onClick={onCancel}>
             Cancelar
           </Button>
-          <Button onClick={onConfirm}>
-            Confirmar y Guardar ({transactions.length})
+          <Button onClick={handleConfirm}>
+            Confirmar y Guardar ({localTransactions.length})
           </Button>
         </DialogFooter>
       </DialogContent>
