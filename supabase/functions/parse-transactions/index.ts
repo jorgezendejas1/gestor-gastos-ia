@@ -63,7 +63,7 @@ serve(async (req) => {
     }
 
     // Build envelopes context
-    let envelopesContext = '\n\nSOBRES DISPONIBLES (usar estos como categorías):\n';
+    let envelopesContext = '\n\nSOBRES DISPONIBLES (usar estos como categorías para GASTOS):\n';
     if (envelopeNames.length > 0) {
       envelopesContext += envelopeNames.join(', ');
     } else {
@@ -151,6 +151,8 @@ IMPORTANTE:
 
 Responde SOLO con JSON válido, sin markdown.`;
 
+    console.log("Procesando texto con Gemini 2.5 Flash:", text.substring(0, 100));
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -158,12 +160,12 @@ Responde SOLO con JSON válido, sin markdown.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { 
             role: "user", 
-            content: `Parsea las siguientes transacciones (una por línea):\n\n${text}\n\nDevuelve un array JSON con objetos que tengan: date (ISO 8601), amount (number), type ("income" o "expense"), description (string), paymentMethod ("card", "cash", o "other"). Si alguna línea es ambigua, incluye un objeto con error: true y suggestion (string con la corrección sugerida).` 
+            content: `Parsea las siguientes transacciones (una por línea):\n\n${text}\n\nDevuelve un array JSON con objetos que tengan: date (ISO 8601), amount (number), type ("income" o "expense"), description (string), paymentMethod ("card", "cash", o "other"), categoria (string). Si alguna línea es ambigua, incluye un objeto con error: true y suggestion (string con la corrección sugerida).` 
           },
         ],
         tools: [{
@@ -229,6 +231,7 @@ Responde SOLO con JSON válido, sin markdown.`;
     }
 
     const parsedData = JSON.parse(toolCall.function.arguments);
+    console.log("Transacciones parseadas:", parsedData.transactions?.length || 0);
     
     return new Response(
       JSON.stringify({

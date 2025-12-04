@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, Edit2 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -30,10 +30,39 @@ export const TransactionList = ({ transactions, onUpdate, readOnly = false }: Tr
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [displayCount, setDisplayCount] = useState(20);
   const [envelopes, setEnvelopes] = useState<string[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadEnvelopes();
   }, []);
+
+  // Scroll infinito
+  useEffect(() => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && transactions.length > displayCount) {
+          setDisplayCount(prev => Math.min(prev + 20, transactions.length));
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [transactions.length, displayCount]);
 
   const loadEnvelopes = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -53,8 +82,6 @@ export const TransactionList = ({ transactions, onUpdate, readOnly = false }: Tr
   const displayedTransactions = useMemo(() => {
     return transactions.slice(0, displayCount);
   }, [transactions, displayCount]);
-
-  const hasMore = transactions.length > displayCount;
 
   const handleDelete = async (id: string) => {
     // Get transaction details before deleting
@@ -133,7 +160,7 @@ export const TransactionList = ({ transactions, onUpdate, readOnly = false }: Tr
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-[600px] pr-4">
+        <ScrollArea className="h-[600px] pr-4" ref={scrollRef}>
           <div className="space-y-3">
             {displayedTransactions.map((transaction) => (
               <Card key={transaction.id} className="p-4">
@@ -188,20 +215,17 @@ export const TransactionList = ({ transactions, onUpdate, readOnly = false }: Tr
                 </div>
               </Card>
             ))}
+            
+            {/* Elemento para detectar scroll infinito */}
+            {displayCount < transactions.length && (
+              <div ref={loadMoreRef} className="py-4 text-center">
+                <span className="text-sm text-muted-foreground">
+                  Cargando más... ({transactions.length - displayCount} restantes)
+                </span>
+              </div>
+            )}
           </div>
         </ScrollArea>
-        
-        {hasMore && (
-          <div className="mt-4 text-center">
-            <Button 
-              variant="outline" 
-              onClick={() => setDisplayCount(prev => prev + 20)}
-              className="w-full"
-            >
-              Cargar más ({transactions.length - displayCount} restantes)
-            </Button>
-          </div>
-        )}
       </CardContent>
 
       <TransactionEditDialog

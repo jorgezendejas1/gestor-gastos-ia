@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { Wallet } from "lucide-react";
 
 interface Transaction {
   id: string;
@@ -18,6 +19,13 @@ interface Transaction {
   categoria?: string;
 }
 
+interface EnvelopeInfo {
+  nombre: string;
+  gastado_semana: number;
+  semanal_calculado: number;
+  mensual: number;
+}
+
 interface TransactionEditDialogProps {
   transaction: Transaction | null;
   open: boolean;
@@ -25,6 +33,16 @@ interface TransactionEditDialogProps {
   onSave: () => void;
   envelopes: string[];
 }
+
+const INCOME_CATEGORIES = [
+  "SUELDO",
+  "BONOS", 
+  "VENTAS",
+  "REEMBOLSOS",
+  "INTERESES",
+  "REGALOS",
+  "OTROS INGRESOS"
+];
 
 export const TransactionEditDialog = ({ 
   transaction, 
@@ -40,6 +58,7 @@ export const TransactionEditDialog = ({
   const [metodoPago, setMetodoPago] = useState<"card" | "cash" | "other">("other");
   const [categoria, setCategoria] = useState("");
   const [saving, setSaving] = useState(false);
+  const [envelopeInfo, setEnvelopeInfo] = useState<EnvelopeInfo | null>(null);
 
   useEffect(() => {
     if (transaction) {
@@ -51,6 +70,39 @@ export const TransactionEditDialog = ({
       setCategoria(transaction.categoria || "");
     }
   }, [transaction]);
+
+  useEffect(() => {
+    if (categoria && tipo === "expense") {
+      loadEnvelopeInfo(categoria);
+    } else {
+      setEnvelopeInfo(null);
+    }
+  }, [categoria, tipo]);
+
+  const loadEnvelopeInfo = async (nombre: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: sobre } = await supabase
+      .from('sobres')
+      .select('nombre, gastado_semana, semanal_calculado, mensual')
+      .eq('user_id', user.id)
+      .eq('nombre', nombre)
+      .maybeSingle();
+
+    if (sobre) {
+      setEnvelopeInfo(sobre as EnvelopeInfo);
+    } else {
+      setEnvelopeInfo(null);
+    }
+  };
+
+  const getCategoriesForType = () => {
+    if (tipo === "income") {
+      return INCOME_CATEGORIES;
+    }
+    return envelopes;
+  };
 
   const handleSave = async () => {
     if (!transaction) return;
@@ -252,7 +304,14 @@ export const TransactionEditDialog = ({
           </div>
           <div className="grid gap-2">
             <Label>Tipo</Label>
-            <Select value={tipo} onValueChange={(v) => setTipo(v as "income" | "expense")}>
+            <Select 
+              value={tipo} 
+              onValueChange={(v) => {
+                setTipo(v as "income" | "expense");
+                // Reset category when type changes
+                setCategoria(v === "income" ? "OTROS INGRESOS" : "OTRAS");
+              }}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -276,20 +335,44 @@ export const TransactionEditDialog = ({
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label>Categoría (Sobre)</Label>
+            <Label>Categoría {tipo === "expense" ? "(Sobre)" : "(Ingreso)"}</Label>
             <Select value={categoria} onValueChange={setCategoria}>
               <SelectTrigger>
-                <SelectValue placeholder="Seleccionar sobre" />
+                <SelectValue placeholder="Seleccionar categoría" />
               </SelectTrigger>
               <SelectContent>
-                {envelopes.map((env) => (
-                  <SelectItem key={env} value={env}>
-                    {env}
+                {getCategoriesForType().map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+
+          {/* Información del sobre para gastos */}
+          {tipo === "expense" && envelopeInfo && (
+            <div className="bg-muted/50 p-3 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Wallet className="h-4 w-4 text-primary" />
+                <span className="font-medium text-sm">Información del sobre</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div>
+                  <span className="text-muted-foreground">Gastado:</span>
+                  <p className="font-medium">${envelopeInfo.gastado_semana.toFixed(2)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Semanal:</span>
+                  <p className="font-medium">${envelopeInfo.semanal_calculado.toFixed(2)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Mensual:</span>
+                  <p className="font-medium">${envelopeInfo.mensual.toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>

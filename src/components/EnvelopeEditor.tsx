@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -38,9 +38,20 @@ export const EnvelopeEditor = ({
   userId,
   mode,
 }: EnvelopeEditorProps) => {
-  const [nombre, setNombre] = useState(envelope?.nombre || "");
-  const [mensual, setMensual] = useState(envelope?.mensual?.toString() || "");
+  const [nombre, setNombre] = useState("");
+  const [mensual, setMensual] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Actualizar estado cuando cambia el envelope o el modo
+  useEffect(() => {
+    if (mode === "edit" && envelope) {
+      setNombre(envelope.nombre);
+      setMensual(envelope.mensual.toString());
+    } else if (mode === "create") {
+      setNombre("");
+      setMensual("");
+    }
+  }, [envelope, mode, isOpen]);
 
   const handleSave = async () => {
     if (!nombre.trim()) {
@@ -61,7 +72,7 @@ export const EnvelopeEditor = ({
       const { error } = await supabase
         .from("sobres")
         .update({
-          nombre: nombre.trim(),
+          nombre: nombre.trim().toUpperCase(),
           mensual: mensualNum,
           semanal_calculado: semanalCalculado,
           restante_semana: semanalCalculado - (envelope.gastado_semana || 0),
@@ -78,7 +89,7 @@ export const EnvelopeEditor = ({
     } else {
       const { error } = await supabase.from("sobres").insert({
         user_id: userId,
-        nombre: nombre.trim(),
+        nombre: nombre.trim().toUpperCase(),
         mensual: mensualNum,
         semanal_calculado: semanalCalculado,
         gastado_semana: 0,
@@ -99,8 +110,17 @@ export const EnvelopeEditor = ({
     onClose();
   };
 
+  const handleClose = () => {
+    // Limpiar estado al cerrar
+    if (mode === "create") {
+      setNombre("");
+      setMensual("");
+    }
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -136,10 +156,26 @@ export const EnvelopeEditor = ({
               </p>
             )}
           </div>
+
+          {mode === "edit" && envelope && (
+            <div className="bg-muted/50 p-3 rounded-lg text-sm">
+              <p className="text-muted-foreground mb-1">Estado actual:</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-muted-foreground">Gastado:</span>{" "}
+                  <span className="font-medium">${envelope.gastado_semana?.toFixed(2) || "0.00"}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Restante:</span>{" "}
+                  <span className="font-medium">${envelope.restante_semana?.toFixed(2) || "0.00"}</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={handleClose}>
             Cancelar
           </Button>
           <Button onClick={handleSave} disabled={saving}>
