@@ -21,7 +21,12 @@ export const DailySummary = ({ userId, selectedDate, refreshTrigger }: DailySumm
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadDailyData();
+    // Pequeño delay para asegurar que los datos estén disponibles después de una inserción
+    const timer = setTimeout(() => {
+      loadDailyData();
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, [userId, selectedDate, refreshTrigger]);
 
   const loadDailyData = async () => {
@@ -133,12 +138,12 @@ export const DailySummary = ({ userId, selectedDate, refreshTrigger }: DailySumm
         </div>
       </Card>
 
-      {/* Total del día */}
+      {/* Gastos del día */}
       <Card className="p-4 shadow-md bg-gradient-to-br from-red-100 to-red-50 dark:from-red-900/30 dark:to-red-950/30 border-red-200 dark:border-red-800">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-red-700 dark:text-red-300 mb-1 font-medium">
-              Total del día
+              Gastos del día
             </p>
             <p className="text-xl font-bold text-red-900 dark:text-red-100 tabular-nums">
               -${data.totalDia.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

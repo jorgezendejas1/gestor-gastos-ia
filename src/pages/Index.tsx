@@ -298,7 +298,10 @@ const Index = () => {
       // Update week totals and check for inconsistencies
       await updateWeekTotals(semana.id, cerramosCon);
       
-      // Trigger refresh of all components
+      // Recargar transacciones inmediatamente
+      await loadTransactions();
+      
+      // Trigger refresh of all components después de recargar
       triggerRefresh();
       
       toast.success(`${movimientos.length} movimiento(s) guardado(s)`);
