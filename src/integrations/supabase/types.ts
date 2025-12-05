@@ -142,6 +142,7 @@ export type Database = {
           nombre: string
           restante_semana: number
           semanal_calculado: number
+          tipo: string
           updated_at: string
           user_id: string
         }
@@ -153,6 +154,7 @@ export type Database = {
           nombre: string
           restante_semana: number
           semanal_calculado: number
+          tipo?: string
           updated_at?: string
           user_id: string
         }
@@ -164,6 +166,7 @@ export type Database = {
           nombre?: string
           restante_semana?: number
           semanal_calculado?: number
+          tipo?: string
           updated_at?: string
           user_id?: string
         }

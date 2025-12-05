@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Package, Plus, Pencil, Trash2 } from "lucide-react";
+import { Package, Plus, Pencil, Trash2, PiggyBank, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { EnvelopeEditor } from "./EnvelopeEditor";
 import {
@@ -16,6 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Envelope {
   id: string;
@@ -24,6 +25,7 @@ interface Envelope {
   semanal_calculado: number;
   gastado_semana: number;
   restante_semana: number;
+  tipo?: "gasto" | "ahorro";
 }
 
 interface EnvelopesListProps {
@@ -98,6 +100,7 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
       semanal_calculado: Math.round((env.mensual / 4.345) * 100) / 100,
       gastado_semana: 0,
       restante_semana: Math.round((env.mensual / 4.345) * 100) / 100,
+      tipo: 'gasto' as const,
     }));
 
     const { error } = await supabase
@@ -151,6 +154,95 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
     loadEnvelopes();
   };
 
+  const gastoEnvelopes = envelopes.filter(e => e.tipo !== "ahorro");
+  const ahorroEnvelopes = envelopes.filter(e => e.tipo === "ahorro");
+
+  const renderEnvelopeCard = (envelope: Envelope) => {
+    const isAhorro = envelope.tipo === "ahorro";
+    const percentage = envelope.semanal_calculado > 0
+      ? (envelope.gastado_semana / envelope.semanal_calculado) * 100
+      : 0;
+    const isOverBudget = !isAhorro && percentage > 100;
+    const metaCumplida = isAhorro && percentage >= 100;
+
+    return (
+      <Card key={envelope.id} className="p-4 space-y-3 group relative">
+        {canEdit && (
+          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => handleEdit(envelope)}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-destructive hover:text-destructive"
+              onClick={() => handleDeleteClick(envelope)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+
+        <div className="flex justify-between items-start pr-16">
+          <div className="flex items-center gap-2">
+            {isAhorro ? (
+              <PiggyBank className="h-4 w-4 text-green-600" />
+            ) : (
+              <Wallet className="h-4 w-4 text-primary" />
+            )}
+            <h3 className="font-semibold text-sm">{envelope.nombre}</h3>
+          </div>
+          <span className="text-xs text-muted-foreground">
+            ${envelope.mensual}/mes
+          </span>
+        </div>
+
+        <div className="space-y-1">
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">Semanal</span>
+            <span className="font-medium">
+              ${envelope.semanal_calculado.toFixed(2)}
+            </span>
+          </div>
+
+          <Progress 
+            value={Math.min(percentage, 100)} 
+            className={
+              isAhorro 
+                ? metaCumplida ? "bg-green-500/20" : ""
+                : isOverBudget ? "bg-destructive/20" : ""
+            }
+          />
+
+          <div className="flex justify-between text-xs">
+            <span className={
+              isAhorro 
+                ? metaCumplida ? "text-green-600" : "text-muted-foreground"
+                : isOverBudget ? "text-destructive" : "text-muted-foreground"
+            }>
+              {isAhorro ? "Ahorrado:" : "Gastado:"} ${envelope.gastado_semana.toFixed(2)}
+            </span>
+            <span className={
+              isAhorro
+                ? metaCumplida ? "text-green-600 font-medium" : "text-primary font-medium"
+                : isOverBudget ? "text-destructive font-medium" : "text-primary font-medium"
+            }>
+              {isAhorro 
+                ? metaCumplida ? "¡Meta cumplida!" : `Falta: $${envelope.restante_semana.toFixed(2)}`
+                : isOverBudget ? "Excedido" : `Restante: $${envelope.restante_semana.toFixed(2)}`
+              }
+            </span>
+          </div>
+        </div>
+      </Card>
+    );
+  };
+
   if (loading) {
     return (
       <Card className="p-6">
@@ -194,7 +286,7 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <Package className="h-6 w-6" />
-          Sobres de Presupuesto
+          Sobres
         </h2>
         {canEdit && (
           <Button onClick={handleCreate} size="sm">
@@ -203,70 +295,51 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
           </Button>
         )}
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {envelopes.map((envelope) => {
-          const percentage = envelope.semanal_calculado > 0
-            ? (envelope.gastado_semana / envelope.semanal_calculado) * 100
-            : 0;
-          const isOverBudget = percentage > 100;
 
-          return (
-            <Card key={envelope.id} className="p-4 space-y-3 group relative">
-              {canEdit && (
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => handleEdit(envelope)}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-destructive hover:text-destructive"
-                    onClick={() => handleDeleteClick(envelope)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              )}
+      <Tabs defaultValue="gastos" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-4">
+          <TabsTrigger value="gastos" className="flex items-center gap-2">
+            <Wallet className="h-4 w-4" />
+            Gastos ({gastoEnvelopes.length})
+          </TabsTrigger>
+          <TabsTrigger value="ahorros" className="flex items-center gap-2">
+            <PiggyBank className="h-4 w-4" />
+            Ahorros ({ahorroEnvelopes.length})
+          </TabsTrigger>
+        </TabsList>
 
-              <div className="flex justify-between items-start pr-16">
-                <h3 className="font-semibold text-sm">{envelope.nombre}</h3>
-                <span className="text-xs text-muted-foreground">
-                  ${envelope.mensual}/mes
-                </span>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Semanal</span>
-                  <span className="font-medium">
-                    ${envelope.semanal_calculado.toFixed(2)}
-                  </span>
-                </div>
-
-                <Progress 
-                  value={Math.min(percentage, 100)} 
-                  className={isOverBudget ? "bg-destructive/20" : ""}
-                />
-
-                <div className="flex justify-between text-xs">
-                  <span className={isOverBudget ? "text-destructive" : "text-muted-foreground"}>
-                    Gastado: ${envelope.gastado_semana.toFixed(2)}
-                  </span>
-                  <span className={isOverBudget ? "text-destructive font-medium" : "text-primary font-medium"}>
-                    {isOverBudget ? "Excedido" : `Restante: $${envelope.restante_semana.toFixed(2)}`}
-                  </span>
-                </div>
-              </div>
+        <TabsContent value="gastos">
+          {gastoEnvelopes.length === 0 ? (
+            <Card className="p-6 text-center">
+              <Wallet className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-muted-foreground">No hay sobres de gastos</p>
             </Card>
-          );
-        })}
-      </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {gastoEnvelopes.map(renderEnvelopeCard)}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="ahorros">
+          {ahorroEnvelopes.length === 0 ? (
+            <Card className="p-6 text-center">
+              <PiggyBank className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-muted-foreground text-sm mb-2">No hay sobres de ahorro</p>
+              {canEdit && (
+                <Button variant="outline" size="sm" onClick={handleCreate}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Crear sobre de ahorro
+                </Button>
+              )}
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {ahorroEnvelopes.map(renderEnvelopeCard)}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       <EnvelopeEditor
         envelope={selectedEnvelope}
