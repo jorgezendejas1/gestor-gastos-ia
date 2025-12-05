@@ -69,16 +69,25 @@ serve(async (req) => {
       envelopesContext += 'SUPER, GASOLINA, UBER, TRANSPORTE LEO, PASAJES VIC, NETFLIX, DISNEY, YOUTUBE, AMAZON, APPLE, XBOX, CFE, AGUA, BANORTE, ABOGADO, COLEGIATURA MAU, MTO ANGIE, MTO CARIOTA, MTO JARDINES, FARMACIA, RECARGAS CEL, SEGURO AUDI, ACEITE, ANTICONGELANTE, BEBBIA, ABIX, PROPINAS, OTRAS';
     }
 
-    // Get current date in Mexico timezone
-    const today = new Date();
-    const mexicoDate = today.toLocaleDateString('es-MX', { 
+    // Get current date in Mexico timezone (CRITICAL: use Mexico time, not UTC)
+    const now = new Date();
+    const mexicoFormatter = new Intl.DateTimeFormat('en-CA', { 
       timeZone: 'America/Mexico_City',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit'
     });
-    const currentYear = today.getFullYear();
-    const todayISO = today.toISOString().split('T')[0];
+    // This gives YYYY-MM-DD format in Mexico timezone
+    const todayISO = mexicoFormatter.format(now);
+    const [currentYear] = todayISO.split('-');
+    const mexicoDate = new Intl.DateTimeFormat('es-MX', {
+      timeZone: 'America/Mexico_City',
+      year: 'numeric',
+      month: '2-digit', 
+      day: '2-digit'
+    }).format(now);
+    
+    console.log("Fecha actual México:", todayISO, "Hora UTC:", now.toISOString());
 
     const systemPrompt = `Eres un experto en analizar imágenes de tickets, recibos, estados de cuenta y notas de gastos en español.
 Tu tarea es extraer TODAS las transacciones que puedas identificar en la imagen.
