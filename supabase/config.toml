@@ -1,7 +1,7 @@
 project_id = "cewvrshphamkupndcwje"
 
 [functions.parse-transactions]
-verify_jwt = false
+verify_jwt = true
 
 [functions.parse-image-transactions]
-verify_jwt = false
+verify_jwt = true
