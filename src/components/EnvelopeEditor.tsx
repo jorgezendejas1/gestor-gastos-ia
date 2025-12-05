@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 
 interface Envelope {
@@ -19,6 +20,7 @@ interface Envelope {
   semanal_calculado: number;
   gastado_semana: number;
   restante_semana: number;
+  tipo?: "gasto" | "ahorro";
 }
 
 interface EnvelopeEditorProps {
@@ -40,6 +42,7 @@ export const EnvelopeEditor = ({
 }: EnvelopeEditorProps) => {
   const [nombre, setNombre] = useState("");
   const [mensual, setMensual] = useState("");
+  const [tipo, setTipo] = useState<"gasto" | "ahorro">("gasto");
   const [saving, setSaving] = useState(false);
 
   // Actualizar estado cuando cambia el envelope o el modo
@@ -47,9 +50,11 @@ export const EnvelopeEditor = ({
     if (mode === "edit" && envelope) {
       setNombre(envelope.nombre);
       setMensual(envelope.mensual.toString());
+      setTipo(envelope.tipo || "gasto");
     } else if (mode === "create") {
       setNombre("");
       setMensual("");
+      setTipo("gasto");
     }
   }, [envelope, mode, isOpen]);
 
@@ -76,6 +81,7 @@ export const EnvelopeEditor = ({
           mensual: mensualNum,
           semanal_calculado: semanalCalculado,
           restante_semana: semanalCalculado - (envelope.gastado_semana || 0),
+          tipo,
         })
         .eq("id", envelope.id);
 
@@ -94,6 +100,7 @@ export const EnvelopeEditor = ({
         semanal_calculado: semanalCalculado,
         gastado_semana: 0,
         restante_semana: semanalCalculado,
+        tipo,
       });
 
       if (error) {
@@ -115,6 +122,7 @@ export const EnvelopeEditor = ({
     if (mode === "create") {
       setNombre("");
       setMensual("");
+      setTipo("gasto");
     }
     onClose();
   };
@@ -130,17 +138,41 @@ export const EnvelopeEditor = ({
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
+            <Label>Tipo de sobre</Label>
+            <RadioGroup
+              value={tipo}
+              onValueChange={(v) => setTipo(v as "gasto" | "ahorro")}
+              className="flex gap-4"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="gasto" id="gasto" />
+                <Label htmlFor="gasto" className="cursor-pointer font-normal">
+                  💸 Gasto (presupuesto)
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="ahorro" id="ahorro" />
+                <Label htmlFor="ahorro" className="cursor-pointer font-normal">
+                  🐷 Ahorro (meta)
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="nombre">Nombre del sobre</Label>
             <Input
               id="nombre"
               value={nombre}
               onChange={(e) => setNombre(e.target.value.toUpperCase())}
-              placeholder="Ej: GASOLINA"
+              placeholder={tipo === "gasto" ? "Ej: GASOLINA" : "Ej: VACACIONES"}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="mensual">Presupuesto mensual ($)</Label>
+            <Label htmlFor="mensual">
+              {tipo === "gasto" ? "Presupuesto mensual ($)" : "Meta mensual de ahorro ($)"}
+            </Label>
             <Input
               id="mensual"
               type="number"
@@ -162,11 +194,15 @@ export const EnvelopeEditor = ({
               <p className="text-muted-foreground mb-1">Estado actual:</p>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <span className="text-muted-foreground">Gastado:</span>{" "}
+                  <span className="text-muted-foreground">
+                    {tipo === "gasto" ? "Gastado:" : "Ahorrado:"}
+                  </span>{" "}
                   <span className="font-medium">${envelope.gastado_semana?.toFixed(2) || "0.00"}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Restante:</span>{" "}
+                  <span className="text-muted-foreground">
+                    {tipo === "gasto" ? "Restante:" : "Falta:"}
+                  </span>{" "}
                   <span className="font-medium">${envelope.restante_semana?.toFixed(2) || "0.00"}</span>
                 </div>
               </div>
