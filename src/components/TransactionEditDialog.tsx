@@ -8,6 +8,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Wallet } from "lucide-react";
+import { z } from "zod";
+
+const transactionSchema = z.object({
+  fecha: z.string().min(1, "La fecha es requerida"),
+  descripcion: z.string().min(1, "La descripción es requerida").max(500, "Máximo 500 caracteres"),
+  monto: z.number().positive("El monto debe ser positivo").max(100000000, "Monto máximo excedido"),
+  tipo: z.enum(["income", "expense"]),
+  metodoPago: z.enum(["card", "cash", "other"]),
+  categoria: z.string().min(1, "La categoría es requerida").max(100, "Máximo 100 caracteres"),
+});
 
 interface Transaction {
   id: string;
@@ -107,6 +117,22 @@ export const TransactionEditDialog = ({
   const handleSave = async () => {
     if (!transaction) return;
     
+    // Validate with zod
+    const validation = transactionSchema.safeParse({
+      fecha,
+      descripcion,
+      monto: parseFloat(monto) || 0,
+      tipo,
+      metodoPago,
+      categoria,
+    });
+
+    if (!validation.success) {
+      const errors = validation.error.errors.map(e => e.message).join(", ");
+      toast.error(errors);
+      return;
+    }
+
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -118,7 +144,7 @@ export const TransactionEditDialog = ({
       const oldCategoria = transaction.categoria;
       const oldMonto = transaction.amount;
       const oldTipo = transaction.type;
-      const newMonto = parseFloat(monto);
+      const newMonto = validation.data.monto;
 
       // Update the transaction
       const { error: updateError } = await supabase

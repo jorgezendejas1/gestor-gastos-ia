@@ -12,6 +12,15 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authorization header exists
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "No autorizado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { image } = await req.json();
     
     if (!image || typeof image !== 'string') {
@@ -20,9 +29,6 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    // Get authorization header for user context
-    const authHeader = req.headers.get('Authorization');
     
     // Create Supabase client
     const supabaseClient = createClient(

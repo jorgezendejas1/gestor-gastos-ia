@@ -7,6 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Wallet, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { z } from "zod";
+
+const authSchema = z.object({
+  email: z.string().email("Email inválido").max(255, "Email demasiado largo"),
+  password: z.string().min(8, "Mínimo 8 caracteres").max(128, "Máximo 128 caracteres"),
+});
 
 export const Auth = () => {
   const [loading, setLoading] = useState(false);
@@ -16,13 +22,10 @@ export const Auth = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email || !password) {
-      toast.error("Por favor completa todos los campos");
-      return;
-    }
-
-    if (password.length < 6) {
-      toast.error("La contraseña debe tener al menos 6 caracteres");
+    const validation = authSchema.safeParse({ email, password });
+    if (!validation.success) {
+      const errors = validation.error.errors.map(e => e.message).join(", ");
+      toast.error(errors);
       return;
     }
 
@@ -30,8 +33,8 @@ export const Auth = () => {
 
     try {
       const { error } = await supabase.auth.signUp({
-        email,
-        password,
+        email: validation.data.email,
+        password: validation.data.password,
       });
 
       if (error) throw error;
@@ -47,8 +50,10 @@ export const Auth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email || !password) {
-      toast.error("Por favor completa todos los campos");
+    const validation = authSchema.safeParse({ email, password });
+    if (!validation.success) {
+      const errors = validation.error.errors.map(e => e.message).join(", ");
+      toast.error(errors);
       return;
     }
 
@@ -56,8 +61,8 @@ export const Auth = () => {
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: validation.data.email,
+        password: validation.data.password,
       });
 
       if (error) throw error;
@@ -154,12 +159,13 @@ export const Auth = () => {
                 <Input
                   id="signup-password"
                   type="password"
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="Mínimo 8 caracteres"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}
                   required
-                  minLength={6}
+                  minLength={8}
+                  maxLength={128}
                 />
               </div>
               <Button
