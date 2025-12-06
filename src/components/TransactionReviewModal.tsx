@@ -31,6 +31,7 @@ interface EnvelopeInfo {
   gastado_semana: number;
   semanal_calculado: number;
   mensual: number;
+  tipo: string;
 }
 
 interface TransactionReviewModalProps {
@@ -77,7 +78,7 @@ export const TransactionReviewModal = ({
 
     const { data: sobres } = await supabase
       .from('sobres')
-      .select('nombre, gastado_semana, semanal_calculado, mensual')
+      .select('nombre, gastado_semana, semanal_calculado, mensual, tipo')
       .eq('user_id', user.id)
       .order('nombre');
 
@@ -119,9 +120,12 @@ export const TransactionReviewModal = ({
 
   const getCategoriesForType = (type: "income" | "expense") => {
     if (type === "income") {
-      return INCOME_CATEGORIES;
+      // Para ingresos: categorías de ingreso + sobres de ahorro
+      const ahorroEnvelopes = envelopes.filter(e => e.tipo === 'ahorro').map(e => e.nombre);
+      return [...INCOME_CATEGORIES, ...ahorroEnvelopes];
     }
-    return envelopes.map(e => e.nombre);
+    // Para gastos: solo sobres de gasto
+    return envelopes.filter(e => e.tipo === 'gasto').map(e => e.nombre);
   };
 
   return (
@@ -324,12 +328,16 @@ export const TransactionReviewModal = ({
                             )}
                           </div>
 
-                          {/* Información del sobre para gastos */}
-                          {transaction.type === "expense" && envelopeInfo && (
-                            <div className="flex items-center gap-3 text-xs bg-muted/50 p-2 rounded mt-1">
-                              <Wallet className="h-3 w-3 text-primary" />
+                          {/* Información del sobre para gastos y ahorros */}
+                          {envelopeInfo && (
+                            <div className={`flex items-center gap-3 text-xs p-2 rounded mt-1 ${
+                              envelopeInfo.tipo === 'ahorro' ? 'bg-green-500/10' : 'bg-muted/50'
+                            }`}>
+                              <Wallet className={`h-3 w-3 ${envelopeInfo.tipo === 'ahorro' ? 'text-green-600' : 'text-primary'}`} />
                               <span>
-                                <span className="text-muted-foreground">Gastado:</span>{" "}
+                                <span className="text-muted-foreground">
+                                  {envelopeInfo.tipo === 'ahorro' ? 'Ahorrado:' : 'Gastado:'}
+                                </span>{" "}
                                 <span className="font-medium">${envelopeInfo.gastado_semana.toFixed(2)}</span>
                               </span>
                               <span>

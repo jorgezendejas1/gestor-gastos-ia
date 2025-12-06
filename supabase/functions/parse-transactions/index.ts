@@ -54,12 +54,13 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY no configurada");
     }
 
-    // Fetch user's envelopes (sobres) to use as categories
+    // Fetch user's envelopes (sobres) to use as categories - separate by type
     const { data: sobres } = await supabaseClient
       .from('sobres')
-      .select('nombre');
+      .select('nombre, tipo');
     
-    const envelopeNames = sobres?.map(s => s.nombre) || [];
+    const gastoEnvelopes = sobres?.filter(s => s.tipo === 'gasto').map(s => s.nombre) || [];
+    const ahorroEnvelopes = sobres?.filter(s => s.tipo === 'ahorro').map(s => s.nombre) || [];
 
     // Build learned mappings context
     let mappingsContext = '';
@@ -69,11 +70,17 @@ serve(async (req) => {
     }
 
     // Build envelopes context
-    let envelopesContext = '\n\nSOBRES DISPONIBLES (usar estos como categorías para GASTOS):\n';
-    if (envelopeNames.length > 0) {
-      envelopesContext += envelopeNames.join(', ');
+    let envelopesContext = '\n\nSOBRES DE GASTO (usar estos como categorías para GASTOS):\n';
+    if (gastoEnvelopes.length > 0) {
+      envelopesContext += gastoEnvelopes.join(', ');
     } else {
       envelopesContext += 'SUPER, GASOLINA, UBER, TRANSPORTE LEO, PASAJES VIC, NETFLIX, DISNEY, YOUTUBE, AMAZON, APPLE, XBOX, CFE, AGUA, BANORTE, ABOGADO, COLEGIATURA MAU, MTO ANGIE, MTO CARIOTA, MTO JARDINES, FARMACIA, RECARGAS CEL, SEGURO AUDI, ACEITE, ANTICONGELANTE, BEBBIA, ABIX, PROPINAS, OTRAS';
+    }
+    
+    // Add savings envelopes context
+    if (ahorroEnvelopes.length > 0) {
+      envelopesContext += '\n\nSOBRES DE AHORRO (usar estos como categorías adicionales para INGRESOS destinados a ahorro):\n';
+      envelopesContext += ahorroEnvelopes.join(', ');
     }
 
     // Get current date in Mexico timezone (CRITICAL: use Mexico time, not UTC)
@@ -124,8 +131,8 @@ Reglas de parseo:
 5. MÉTODO DE PAGO: "tarjeta", "efectivo", u "otro". Si no se menciona, usa "otro"
 
 6. CATEGORÍA: 
-   - Para GASTOS: Usa los nombres de sobres disponibles
-   - Para INGRESOS: Usa las categorías de ingresos
+   - Para GASTOS: Usa los nombres de sobres de gasto
+   - Para INGRESOS: Usa las categorías de ingresos O sobres de ahorro si el ingreso es para ahorrar
 ${envelopesContext}
 
 CATEGORÍAS DE INGRESOS (usar para type="income"):
@@ -136,6 +143,7 @@ CATEGORÍAS DE INGRESOS (usar para type="income"):
 - INTERESES: intereses, rendimientos, dividendos
 - REGALOS: regalo, me dieron, cumpleaños
 - OTROS INGRESOS: cualquier otro ingreso no clasificado
+- Si el ingreso menciona "ahorro", "para ahorrar", o nombres de sobres de ahorro → usar el sobre de ahorro correspondiente
 ${mappingsContext}
 
 REGLAS DE CATEGORIZACIÓN PARA GASTOS (mapear a sobres):
