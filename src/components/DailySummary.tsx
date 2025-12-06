@@ -34,6 +34,14 @@ export const DailySummary = ({ userId, selectedDate, refreshTrigger }: DailySumm
     
     setLoading(true);
     try {
+      // Use Mexico timezone for date formatting
+      const mexicoFormatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Mexico_City',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      
       const todayStr = format(selectedDate, 'yyyy-MM-dd');
       const yesterdayStr = format(subDays(selectedDate, 1), 'yyyy-MM-dd');
 

@@ -89,21 +89,20 @@ export const TransactionInput = ({ onTransactionsParsed }: TransactionInputProps
     setErrors([]);
 
     try {
-      // Convertir imagen a base64
-      const base64 = await new Promise<string>((resolve, reject) => {
+      // Convertir imagen a base64 con prefijo completo (data:image/...;base64,)
+      const imageDataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
           const result = reader.result as string;
-          // Remover el prefijo data:image/...;base64,
-          const base64Data = result.split(',')[1];
-          resolve(base64Data);
+          // Mantener el prefijo data:image/...;base64, completo para el AI Gateway
+          resolve(result);
         };
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
 
       const { data, error } = await supabase.functions.invoke('parse-image-transactions', {
-        body: { image: base64 }
+        body: { image: imageDataUrl }
       });
 
       if (error) {
