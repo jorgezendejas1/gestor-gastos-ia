@@ -37,12 +37,27 @@ interface Transaction {
   fuente_texto: string | null;
 }
 
+// Helper function to get current date in Mexico timezone
+const getMexicoDate = (): Date => {
+  const now = new Date();
+  // Format the date in Mexico timezone and parse it back to a Date object
+  const mexicoDateStr = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Mexico_City',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(now);
+  // Parse YYYY-MM-DD and create a date at noon to avoid timezone issues
+  const [year, month, day] = mexicoDateStr.split('-').map(Number);
+  return new Date(year, month - 1, day, 12, 0, 0);
+};
+
 const Index = () => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
-  const [currentWeekDate, setCurrentWeekDate] = useState<Date>(new Date());
+  const [currentWeekDate, setCurrentWeekDate] = useState<Date>(getMexicoDate());
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [filters, setFilters] = useState<FilterState>({
     weekId: null,

@@ -24,7 +24,16 @@ export const WeekNavigator = ({ currentDate, onDateChange }: WeekNavigatorProps)
   };
 
   const goToToday = () => {
-    onDateChange(new Date());
+    // Get current date in Mexico timezone
+    const now = new Date();
+    const mexicoDateStr = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Mexico_City',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(now);
+    const [year, month, day] = mexicoDateStr.split('-').map(Number);
+    onDateChange(new Date(year, month - 1, day, 12, 0, 0));
   };
 
   return (
