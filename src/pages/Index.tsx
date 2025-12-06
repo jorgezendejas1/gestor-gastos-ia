@@ -322,38 +322,66 @@ const Index = () => {
 
     if (!sobres || sobres.length === 0) return;
 
-    // Calculate spending per envelope this week
-    const { data: movimientos } = await supabase
+    // Separate envelopes by type
+    const gastoEnvelopes = sobres.filter(s => s.tipo === 'gasto');
+    const ahorroEnvelopes = sobres.filter(s => s.tipo === 'ahorro');
+
+    // Calculate spending per gasto envelope this week
+    const { data: gastos } = await supabase
       .from('movimientos')
       .select('*')
       .eq('semana_id', semanaId)
       .eq('tipo', 'gasto');
 
-    if (!movimientos) return;
+    // Calculate income assigned to ahorro envelopes this week
+    const { data: ingresos } = await supabase
+      .from('movimientos')
+      .select('*')
+      .eq('semana_id', semanaId)
+      .eq('tipo', 'ingreso');
 
-    // Reset all envelopes for this week
+    // Initialize spending tracking
     const envelopeSpending: Record<string, number> = {};
     sobres.forEach(sobre => {
       envelopeSpending[sobre.nombre] = 0;
     });
 
-    // Calculate spending per envelope
-    movimientos.forEach((mov: any) => {
-      const envelopeName = mapTransactionToEnvelope(mov.descripcion, mov.categoria);
-      if (envelopeName && envelopeSpending[envelopeName] !== undefined) {
-        envelopeSpending[envelopeName] += Number(mov.monto);
-      }
-    });
+    // Calculate spending per gasto envelope
+    if (gastos) {
+      gastos.forEach((mov: any) => {
+        const envelopeName = mapTransactionToEnvelope(mov.descripcion, mov.categoria);
+        if (envelopeName && envelopeSpending[envelopeName] !== undefined) {
+          envelopeSpending[envelopeName] += Number(mov.monto);
+        }
+      });
+    }
+
+    // Calculate savings per ahorro envelope (from incomes assigned to them)
+    const ahorroEnvelopeNames = new Set(ahorroEnvelopes.map(s => s.nombre.toUpperCase()));
+    if (ingresos) {
+      ingresos.forEach((mov: any) => {
+        const categoria = mov.categoria?.toUpperCase();
+        if (categoria && ahorroEnvelopeNames.has(categoria)) {
+          // Find the envelope name with correct case
+          const envelope = ahorroEnvelopes.find(s => s.nombre.toUpperCase() === categoria);
+          if (envelope && envelopeSpending[envelope.nombre] !== undefined) {
+            envelopeSpending[envelope.nombre] += Number(mov.monto);
+          }
+        }
+      });
+    }
 
     // Update each envelope
     for (const sobre of sobres) {
-      const gastado = envelopeSpending[sobre.nombre] || 0;
-      const restante = sobre.semanal_calculado - gastado;
+      const gastadoOAhorrado = envelopeSpending[sobre.nombre] || 0;
+      const restante = sobre.tipo === 'ahorro' 
+        ? sobre.semanal_calculado - gastadoOAhorrado // For savings, restante = goal - saved
+        : sobre.semanal_calculado - gastadoOAhorrado; // For expenses, restante = budget - spent
 
       await supabase
         .from('sobres')
         .update({
-          gastado_semana: gastado,
+          gastado_semana: gastadoOAhorrado,
           restante_semana: restante,
         })
         .eq('id', sobre.id);
