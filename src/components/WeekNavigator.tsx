@@ -24,15 +24,15 @@ export const WeekNavigator = ({ currentDate, onDateChange }: WeekNavigatorProps)
   };
 
   const goToToday = () => {
-    // Get current date in Mexico timezone
+    // Get current date in Cancun timezone (UTC-5)
     const now = new Date();
-    const mexicoDateStr = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/Mexico_City',
+    const cancunDateStr = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Cancun',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit'
     }).format(now);
-    const [year, month, day] = mexicoDateStr.split('-').map(Number);
+    const [year, month, day] = cancunDateStr.split('-').map(Number);
     onDateChange(new Date(year, month - 1, day, 12, 0, 0));
   };
 

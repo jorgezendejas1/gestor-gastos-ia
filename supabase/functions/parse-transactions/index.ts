@@ -83,30 +83,29 @@ serve(async (req) => {
       envelopesContext += ahorroEnvelopes.join(', ');
     }
 
-    // Get current date in Mexico timezone (CRITICAL: use Mexico time, not UTC)
+    // Get current date in Cancun timezone (CRITICAL: use Cancun time UTC-5, not UTC)
     const now = new Date();
-    const mexicoFormatter = new Intl.DateTimeFormat('en-CA', { 
-      timeZone: 'America/Mexico_City',
+    const cancunFormatter = new Intl.DateTimeFormat('en-CA', { 
+      timeZone: 'America/Cancun',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit'
     });
-    // This gives YYYY-MM-DD format in Mexico timezone
-    const todayISO = mexicoFormatter.format(now);
+    // This gives YYYY-MM-DD format in Cancun timezone
+    const todayISO = cancunFormatter.format(now);
     const [currentYear] = todayISO.split('-');
-    const mexicoDate = new Intl.DateTimeFormat('es-MX', {
-      timeZone: 'America/Mexico_City',
+    const cancunDate = new Intl.DateTimeFormat('es-MX', {
+      timeZone: 'America/Cancun',
       year: 'numeric',
-      month: '2-digit', 
       day: '2-digit'
     }).format(now);
     
-    console.log("Fecha actual México:", todayISO, "Hora UTC:", now.toISOString());
+    console.log("Fecha actual Cancún:", todayISO, "Hora UTC:", now.toISOString());
 
     const systemPrompt = `Eres un experto en analizar transacciones financieras en español. 
 Tu tarea es extraer información estructurada de entradas de texto libre.
 
-FECHA ACTUAL: ${todayISO} (Hoy es ${mexicoDate}, año ${currentYear})
+FECHA ACTUAL: ${todayISO} (Hoy es ${cancunDate}, año ${currentYear})
 
 Reglas de parseo:
 1. FECHA: 

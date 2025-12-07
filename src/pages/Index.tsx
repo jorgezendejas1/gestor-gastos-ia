@@ -37,18 +37,18 @@ interface Transaction {
   fuente_texto: string | null;
 }
 
-// Helper function to get current date in Mexico timezone
-const getMexicoDate = (): Date => {
+// Helper function to get current date in Cancun timezone (UTC-5)
+const getCancunDate = (): Date => {
   const now = new Date();
-  // Format the date in Mexico timezone and parse it back to a Date object
-  const mexicoDateStr = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Mexico_City',
+  // Format the date in Cancun timezone and parse it back to a Date object
+  const cancunDateStr = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Cancun',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit'
   }).format(now);
   // Parse YYYY-MM-DD and create a date at noon to avoid timezone issues
-  const [year, month, day] = mexicoDateStr.split('-').map(Number);
+  const [year, month, day] = cancunDateStr.split('-').map(Number);
   return new Date(year, month - 1, day, 12, 0, 0);
 };
 
@@ -57,7 +57,7 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
-  const [currentWeekDate, setCurrentWeekDate] = useState<Date>(getMexicoDate());
+  const [currentWeekDate, setCurrentWeekDate] = useState<Date>(getCancunDate());
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [filters, setFilters] = useState<FilterState>({
     weekId: null,
