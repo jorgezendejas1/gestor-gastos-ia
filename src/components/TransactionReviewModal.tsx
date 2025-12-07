@@ -112,10 +112,27 @@ export const TransactionReviewModal = ({
     .filter((t) => t.type === "expense")
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const paymentMethodLabels = {
+  const paymentMethodLabels: Record<string, string> = {
     card: "Tarjeta",
     cash: "Efectivo",
     other: "Otro",
+    tarjeta: "Tarjeta",
+    efectivo: "Efectivo",
+    otro: "Otro",
+  };
+
+  // Helper to safely format date
+  const formatDate = (dateStr: string) => {
+    try {
+      // Handle YYYY-MM-DD format
+      const [year, month, day] = dateStr.split('-').map(Number);
+      if (year && month && day) {
+        return new Date(year, month - 1, day).toLocaleDateString("es-MX");
+      }
+      return dateStr;
+    } catch {
+      return dateStr;
+    }
   };
 
   const getCategoriesForType = (type: "income" | "expense") => {
@@ -312,7 +329,7 @@ export const TransactionReviewModal = ({
                           <div className="flex flex-wrap gap-2 text-xs">
                             <div className="flex items-center gap-1 text-muted-foreground">
                               <Calendar className="h-3 w-3" />
-                              {new Date(transaction.date).toLocaleDateString("es-MX")}
+                              {formatDate(transaction.date)}
                             </div>
                             <div className="flex items-center gap-1 text-muted-foreground">
                               <CreditCard className="h-3 w-3" />

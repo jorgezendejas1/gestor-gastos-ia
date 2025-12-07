@@ -160,7 +160,7 @@ Extrae TODAS las transacciones que puedas identificar.`;
             content: [
               {
                 type: "text",
-                text: "Analiza esta imagen y extrae todas las transacciones que puedas identificar. Devuelve un array JSON con: date (ISO 8601), amount (number), type ('income' o 'expense'), description (string), paymentMethod ('card', 'cash', o 'other'), categoria (string)."
+                text: "Analiza esta imagen y extrae todas las transacciones que puedas identificar. Devuelve un array JSON con: date (YYYY-MM-DD como string), amount (number positivo), type ('income' o 'expense'), description (string), paymentMethod ('tarjeta', 'efectivo', o 'otro'), categoria (string en MAYUSCULAS)."
               },
               {
                 type: "image_url",
@@ -184,12 +184,12 @@ Extrae TODAS las transacciones que puedas identificar.`;
                   items: {
                     type: "object",
                     properties: {
-                      date: { type: "string", description: "Fecha en formato ISO 8601" },
-                      amount: { type: "number", description: "Monto como número decimal" },
+                      date: { type: "string", description: "Fecha en formato YYYY-MM-DD" },
+                      amount: { type: "number", description: "Monto como número decimal positivo" },
                       type: { type: "string", enum: ["income", "expense"] },
                       description: { type: "string", description: "Descripción de la transacción" },
-                      paymentMethod: { type: "string", enum: ["card", "cash", "other"] },
-                      categoria: { type: "string", description: "Categoría de la transacción" }
+                      paymentMethod: { type: "string", enum: ["tarjeta", "efectivo", "otro"] },
+                      categoria: { type: "string", description: "Categoría en mayusculas" }
                     },
                     required: ["date", "amount", "type", "description", "paymentMethod", "categoria"]
                   }
