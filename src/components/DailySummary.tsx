@@ -34,9 +34,9 @@ export const DailySummary = ({ userId, selectedDate, refreshTrigger }: DailySumm
     
     setLoading(true);
     try {
-      // Use Mexico timezone for date formatting
-      const mexicoFormatter = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'America/Mexico_City',
+      // Use Cancun timezone for date formatting (UTC-5)
+      const cancunFormatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Cancun',
         year: 'numeric',
         month: '2-digit',
         day: '2-digit'
