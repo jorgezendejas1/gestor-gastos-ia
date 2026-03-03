@@ -169,7 +169,7 @@ export const TransactionReviewModal = ({
               </div>
             )}
 
-            {cerramosCon !== null && (
+            {cerramosCon != null && (
               <div className="bg-muted/50 p-3 rounded-lg">
                 <p className="text-sm font-medium">
                   🔒 Saldo final declarado:{" "}
