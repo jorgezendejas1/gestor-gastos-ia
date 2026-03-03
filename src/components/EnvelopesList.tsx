@@ -50,6 +50,7 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
     const { data, error } = await supabase
       .from('sobres')
       .select('*')
+      .eq('user_id', userId)
       .order('nombre', { ascending: true });
 
     if (error) {

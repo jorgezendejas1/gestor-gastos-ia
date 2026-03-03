@@ -129,7 +129,7 @@ export const AdvancedAnalytics = ({ userId }: AdvancedAnalyticsProps) => {
 
     // Average daily spending
     const days = movimientos.length > 0 ? 
-      Math.max(1, Math.ceil((new Date(movimientos[movimientos.length - 1].fecha).getTime() - new Date(movimientos[0].fecha).getTime()) / (1000 * 60 * 60 * 24))) : 1;
+      Math.max(1, Math.ceil((new Date(movimientos[movimientos.length - 1].fecha + 'T12:00:00').getTime() - new Date(movimientos[0].fecha + 'T12:00:00').getTime()) / (1000 * 60 * 60 * 24))) : 1;
     const avgDailySpending = totalExpenses / days;
 
     // Most expensive and cheapest week
