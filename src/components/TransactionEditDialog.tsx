@@ -72,7 +72,7 @@ export const TransactionEditDialog = ({
 
   useEffect(() => {
     if (transaction) {
-      setFecha(format(new Date(transaction.date), "yyyy-MM-dd"));
+      setFecha(format(new Date(transaction.date + 'T12:00:00'), "yyyy-MM-dd"));
       setDescripcion(transaction.description);
       setMonto(transaction.amount.toString());
       setTipo(transaction.type);
@@ -147,6 +147,8 @@ export const TransactionEditDialog = ({
       const newMonto = validation.data.monto;
 
       // Update the transaction
+      const methodMap: Record<string, string> = { card: 'tarjeta', cash: 'efectivo', other: 'otro' };
+
       const { error: updateError } = await supabase
         .from('movimientos')
         .update({
@@ -154,7 +156,7 @@ export const TransactionEditDialog = ({
           descripcion,
           monto: newMonto,
           tipo: tipo === "income" ? "ingreso" : "gasto",
-          metodo_pago: metodoPago,
+          metodo_pago: methodMap[metodoPago] || metodoPago,
           categoria,
         })
         .eq('id', transaction.id);

@@ -212,7 +212,7 @@ const Index = () => {
       const { transactions: parsedTransactions, saldoInicial, cerramosCon } = parsedData;
 
       // Get or create current week
-      const today = new Date();
+      const today = getCancunDate();
       const weekStart = startOfWeek(today, { weekStartsOn: 1 });
       const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
 

@@ -26,21 +26,13 @@ export interface FilterState {
   searchTerm: string;
 }
 
-const CATEGORIES = [
-  "Transporte",
-  "Alimentación & Hogar",
-  "Entretenimiento",
-  "Servicios",
-  "Salud",
-  "Educación",
-  "Otros",
-];
 
 export const TransactionFilters = ({
   userId,
   onFilterChange,
 }: TransactionFiltersProps) => {
   const [weeks, setWeeks] = useState<any[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [filters, setFilters] = useState<FilterState>({
     weekId: null,
     categoria: null,
@@ -50,7 +42,17 @@ export const TransactionFilters = ({
 
   useEffect(() => {
     loadWeeks();
+    loadCategories();
   }, [userId]);
+
+  const loadCategories = async () => {
+    const { data } = await supabase
+      .from("sobres")
+      .select("nombre")
+      .eq("user_id", userId)
+      .order("nombre");
+    if (data) setCategories(data.map(s => s.nombre));
+  };
 
   useEffect(() => {
     onFilterChange(filters);
@@ -170,7 +172,7 @@ export const TransactionFilters = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas las categorías</SelectItem>
-                {CATEGORIES.map((cat) => (
+                {categories.map((cat) => (
                   <SelectItem key={cat} value={cat}>
                     {cat}
                   </SelectItem>

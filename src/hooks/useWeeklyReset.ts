@@ -31,21 +31,6 @@ export const useWeeklyReset = (userId: string | undefined) => {
         .maybeSingle();
 
       if (!currentWeek) {
-        // New week started, reset all envelope weekly spending
-        const { error: resetError } = await supabase
-          .from('sobres')
-          .update({ 
-            gastado_semana: 0,
-            restante_semana: supabase.rpc ? undefined : 0 // Will be calculated separately
-          })
-          .eq('user_id', userId);
-
-        if (resetError) {
-          console.error('Error resetting envelopes:', resetError);
-          return;
-        }
-
-        // Update restante_semana to match semanal_calculado
         const { data: sobres } = await supabase
           .from('sobres')
           .select('id, semanal_calculado')
@@ -55,7 +40,10 @@ export const useWeeklyReset = (userId: string | undefined) => {
           for (const sobre of sobres) {
             await supabase
               .from('sobres')
-              .update({ restante_semana: sobre.semanal_calculado })
+              .update({
+                gastado_semana: 0,
+                restante_semana: sobre.semanal_calculado
+              })
               .eq('id', sobre.id);
           }
         }

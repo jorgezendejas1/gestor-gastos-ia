@@ -168,7 +168,7 @@ export const TransactionList = ({ transactions, onUpdate, readOnly = false }: Tr
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">
-                        {format(new Date(transaction.date), "dd/MM/yyyy", { locale: es })}
+                        {format(new Date(transaction.date + 'T12:00:00'), "dd/MM/yyyy", { locale: es })}
                       </span>
                       <span className="text-sm px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
                         {transaction.paymentMethod === "card" ? "Tarjeta" : transaction.paymentMethod === "cash" ? "Efectivo" : "Otro"}

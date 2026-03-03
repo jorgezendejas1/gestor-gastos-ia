@@ -34,14 +34,6 @@ export const DailySummary = ({ userId, selectedDate, refreshTrigger }: DailySumm
     
     setLoading(true);
     try {
-      // Use Cancun timezone for date formatting (UTC-5)
-      const cancunFormatter = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'America/Cancun',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      });
-      
       const todayStr = format(selectedDate, 'yyyy-MM-dd');
       const yesterdayStr = format(subDays(selectedDate, 1), 'yyyy-MM-dd');
 
