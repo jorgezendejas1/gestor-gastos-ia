@@ -158,7 +158,7 @@ export const TransactionReviewModal = ({
 
         <ScrollArea className="max-h-[55vh] pr-4">
           <div className="space-y-4">
-            {saldoInicial !== null && (
+            {saldoInicial != null && (
               <div className="bg-muted/50 p-3 rounded-lg">
                 <p className="text-sm font-medium">
                   💰 Saldo inicial detectado:{" "}
