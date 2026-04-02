@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { TransactionInput } from "@/components/TransactionInput";
 import { TransactionList } from "@/components/TransactionList";
-import { WeeklySummary } from "@/components/WeeklySummary";
+
 import { DailySummary } from "@/components/DailySummary";
 import { EnvelopesList } from "@/components/EnvelopesList";
 import { WeeklyDashboard } from "@/components/WeeklyDashboard";
