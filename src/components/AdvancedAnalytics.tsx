@@ -25,7 +25,7 @@ interface KPIData {
   totalExpenses: number;
 }
 
-const COLORS = ['#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#84cc16', '#06b6d4'];
+
 
 export const AdvancedAnalytics = ({ userId }: AdvancedAnalyticsProps) => {
   const [period, setPeriod] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
