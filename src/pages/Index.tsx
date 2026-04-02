@@ -11,7 +11,7 @@ import { WeekNavigator } from "@/components/WeekNavigator";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Auth } from "@/components/Auth";
 import { UserManagement } from "@/components/UserManagement";
-import { ActiveUsers } from "@/components/ActiveUsers";
+
 import { PermissionGuard } from "@/components/PermissionGuard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Wallet, LogOut } from "lucide-react";
