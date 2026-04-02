@@ -23,12 +23,6 @@ interface WeekData {
   fecha_fin: string;
 }
 
-interface CategoryData {
-  name: string;
-  value: number;
-  percentage: number;
-}
-
 interface EnvelopeData {
   nombre: string;
   gastado_semana: number;
@@ -40,8 +34,6 @@ interface EnvelopeData {
   isOverBudget: boolean;
   isMonthlyExhausted: boolean;
 }
-
-const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
 export const WeeklyDashboard = ({ userId }: WeeklyDashboardProps) => {
   const [weekData, setWeekData] = useState<WeekData | null>(null);
