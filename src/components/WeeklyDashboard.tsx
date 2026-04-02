@@ -23,12 +23,6 @@ interface WeekData {
   fecha_fin: string;
 }
 
-interface CategoryData {
-  name: string;
-  value: number;
-  percentage: number;
-}
-
 interface EnvelopeData {
   nombre: string;
   gastado_semana: number;
@@ -41,11 +35,9 @@ interface EnvelopeData {
   isMonthlyExhausted: boolean;
 }
 
-const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
-
 export const WeeklyDashboard = ({ userId }: WeeklyDashboardProps) => {
   const [weekData, setWeekData] = useState<WeekData | null>(null);
-  const [categoryData, setCategoryData] = useState<CategoryData[]>([]);
+  
   const [envelopeData, setEnvelopeData] = useState<EnvelopeData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -77,25 +69,6 @@ export const WeeklyDashboard = ({ userId }: WeeklyDashboardProps) => {
           .eq('semana_id', semana.id)
           .eq('tipo', 'gasto');
 
-        if (movimientos) {
-          // Calculate spending by category
-          const categoryMap: Record<string, number> = {};
-          let totalGastos = 0;
-
-          movimientos.forEach((mov) => {
-            const categoria = mov.categoria || 'Sin categoría';
-            categoryMap[categoria] = (categoryMap[categoria] || 0) + Number(mov.monto);
-            totalGastos += Number(mov.monto);
-          });
-
-          const categories: CategoryData[] = Object.entries(categoryMap).map(([name, value]) => ({
-            name,
-            value,
-            percentage: (value / totalGastos) * 100,
-          })).sort((a, b) => b.value - a.value);
-
-          setCategoryData(categories);
-        }
       }
 
       // Fetch envelope data with monthly spending calculation
@@ -173,10 +146,6 @@ export const WeeklyDashboard = ({ userId }: WeeklyDashboardProps) => {
       ['Gastos', weekData.gastos_totales.toFixed(2)],
       ['Saldo Final', weekData.saldo_final.toFixed(2)],
       [],
-      ['Gastos por Categoría'],
-      ['Categoría', 'Monto', 'Porcentaje'],
-      ...categoryData.map(cat => [cat.name, cat.value.toFixed(2), `${cat.percentage.toFixed(1)}%`]),
-      [],
       ['Gastos por Sobre'],
       ['Sobre', 'Gastado', 'Presupuesto', 'Porcentaje', 'Estado'],
       ...envelopeData.map(env => [
@@ -222,22 +191,8 @@ export const WeeklyDashboard = ({ userId }: WeeklyDashboardProps) => {
       ],
     });
 
-    // Category breakdown
-    const finalY1 = (doc as any).lastAutoTable.finalY || 70;
-    doc.setFontSize(14);
-    doc.text('Gastos por Categoría', 14, finalY1 + 10);
-    autoTable(doc, {
-      startY: finalY1 + 15,
-      head: [['Categoría', 'Monto', 'Porcentaje']],
-      body: categoryData.map(cat => [
-        cat.name,
-        `$${cat.value.toFixed(2)}`,
-        `${cat.percentage.toFixed(1)}%`
-      ]),
-    });
-
     // Envelope breakdown
-    const finalY2 = (doc as any).lastAutoTable.finalY || 120;
+    const finalY2 = (doc as any).lastAutoTable.finalY || 70;
     doc.setFontSize(14);
     doc.text('Gastos por Sobre', 14, finalY2 + 10);
     autoTable(doc, {
@@ -357,65 +312,6 @@ export const WeeklyDashboard = ({ userId }: WeeklyDashboardProps) => {
             </div>
           </CardContent>
         </Card>
-      </div>
-
-      {/* Charts */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Category Breakdown */}
-        {categoryData.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Gastos por Categoría</CardTitle>
-              <CardDescription>Distribución de gastos por categoría esta semana</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percentage }) => percentage > 3 ? `${name}: ${percentage.toFixed(1)}%` : ''}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Envelope Breakdown */}
-        {envelopeData.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Gastos por Sobre</CardTitle>
-              <CardDescription>Porcentaje utilizado del presupuesto semanal</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={envelopeData.slice(0, 10)}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="nombre" angle={-45} textAnchor="end" height={100} />
-                  <YAxis />
-                  <Tooltip formatter={(value: number) => `${value.toFixed(1)}%`} />
-                  <Bar dataKey="percentage" fill="hsl(var(--primary))">
-                    {envelopeData.slice(0, 10).map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.isOverBudget ? 'hsl(var(--destructive))' : 'hsl(var(--primary))'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
       {/* Export Buttons */}
