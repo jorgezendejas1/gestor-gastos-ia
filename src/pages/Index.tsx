@@ -526,12 +526,11 @@ const Index = () => {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="transactions" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="transactions">Movimientos</TabsTrigger>
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="analytics">Análisis</TabsTrigger>
-            <TabsTrigger value="users">
-              Usuarios
+            <TabsTrigger value="budget">Presupuesto</TabsTrigger>
+            <TabsTrigger value="family">
+              Familia
               {role && (
                 <Badge variant="outline" className="ml-2 text-xs">
                   {role === 'admin' ? 'Admin' : role === 'editor' ? 'Editor' : 'Visor'}
@@ -570,23 +569,22 @@ const Index = () => {
             />
           </TabsContent>
 
-          <TabsContent value="dashboard" className="space-y-6">
-            {/* Weekly Dashboard */}
+          <TabsContent value="budget" className="space-y-6">
             <WeeklyDashboard userId={user.id} key={refreshTrigger} />
-
-            {/* Envelopes */}
             <EnvelopesList userId={user.id} canEdit={canEdit} key={`envelopes-${refreshTrigger}`} />
           </TabsContent>
 
-          <TabsContent value="analytics" className="space-y-6">
-            <AdvancedAnalytics userId={user.id} key={`analytics-${refreshTrigger}`} />
-          </TabsContent>
+          <TabsContent value="family" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  Usuarios Conectados
+                </CardTitle>
+                <CardDescription>Miembros de tu grupo familiar con acceso a la app</CardDescription>
+              </CardHeader>
+            </Card>
 
-          <TabsContent value="users" className="space-y-6">
-            {/* Active Users - visible to all */}
-            <ActiveUsers />
-
-            {/* User Management - admin only */}
             <PermissionGuard requireAdmin userId={user.id} showAlert={true}>
               <UserManagement />
             </PermissionGuard>
