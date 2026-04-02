@@ -14,7 +14,8 @@ import { UserManagement } from "@/components/UserManagement";
 
 import { PermissionGuard } from "@/components/PermissionGuard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, LogOut } from "lucide-react";
+import { Wallet, LogOut, Users } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";

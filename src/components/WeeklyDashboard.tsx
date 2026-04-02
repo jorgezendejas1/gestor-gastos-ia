@@ -332,65 +332,6 @@ export const WeeklyDashboard = ({ userId }: WeeklyDashboardProps) => {
         </Card>
       </div>
 
-      {/* Charts */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Category Breakdown */}
-        {categoryData.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Gastos por Categoría</CardTitle>
-              <CardDescription>Distribución de gastos por categoría esta semana</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percentage }) => percentage > 3 ? `${name}: ${percentage.toFixed(1)}%` : ''}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Envelope Breakdown */}
-        {envelopeData.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Gastos por Sobre</CardTitle>
-              <CardDescription>Porcentaje utilizado del presupuesto semanal</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={envelopeData.slice(0, 10)}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="nombre" angle={-45} textAnchor="end" height={100} />
-                  <YAxis />
-                  <Tooltip formatter={(value: number) => `${value.toFixed(1)}%`} />
-                  <Bar dataKey="percentage" fill="hsl(var(--primary))">
-                    {envelopeData.slice(0, 10).map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.isOverBudget ? 'hsl(var(--destructive))' : 'hsl(var(--primary))'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
       {/* Export Buttons */}
       <Card>
         <CardHeader>
