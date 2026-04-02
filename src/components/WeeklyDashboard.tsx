@@ -191,20 +191,6 @@ export const WeeklyDashboard = ({ userId }: WeeklyDashboardProps) => {
       ],
     });
 
-    // Category breakdown
-    const finalY1 = (doc as any).lastAutoTable.finalY || 70;
-    doc.setFontSize(14);
-    doc.text('Gastos por Categoría', 14, finalY1 + 10);
-    autoTable(doc, {
-      startY: finalY1 + 15,
-      head: [['Categoría', 'Monto', 'Porcentaje']],
-      body: categoryData.map(cat => [
-        cat.name,
-        `$${cat.value.toFixed(2)}`,
-        `${cat.percentage.toFixed(1)}%`
-      ]),
-    });
-
     // Envelope breakdown
     const finalY2 = (doc as any).lastAutoTable.finalY || 120;
     doc.setFontSize(14);
