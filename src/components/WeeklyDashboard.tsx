@@ -69,25 +69,6 @@ export const WeeklyDashboard = ({ userId }: WeeklyDashboardProps) => {
           .eq('semana_id', semana.id)
           .eq('tipo', 'gasto');
 
-        if (movimientos) {
-          // Calculate spending by category
-          const categoryMap: Record<string, number> = {};
-          let totalGastos = 0;
-
-          movimientos.forEach((mov) => {
-            const categoria = mov.categoria || 'Sin categoría';
-            categoryMap[categoria] = (categoryMap[categoria] || 0) + Number(mov.monto);
-            totalGastos += Number(mov.monto);
-          });
-
-          const categories: CategoryData[] = Object.entries(categoryMap).map(([name, value]) => ({
-            name,
-            value,
-            percentage: (value / totalGastos) * 100,
-          })).sort((a, b) => b.value - a.value);
-
-          setCategoryData(categories);
-        }
       }
 
       // Fetch envelope data with monthly spending calculation
