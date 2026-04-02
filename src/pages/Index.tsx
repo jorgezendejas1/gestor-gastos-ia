@@ -5,7 +5,7 @@ import { TransactionList } from "@/components/TransactionList";
 import { DailySummary } from "@/components/DailySummary";
 import { EnvelopesList } from "@/components/EnvelopesList";
 import { WeeklyDashboard } from "@/components/WeeklyDashboard";
-import { AdvancedAnalytics } from "@/components/AdvancedAnalytics";
+
 import { TransactionFilters, FilterState } from "@/components/TransactionFilters";
 import { WeekNavigator } from "@/components/WeekNavigator";
 import { ThemeToggle } from "@/components/ThemeToggle";
