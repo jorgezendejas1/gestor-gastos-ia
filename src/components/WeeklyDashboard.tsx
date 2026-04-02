@@ -146,10 +146,6 @@ export const WeeklyDashboard = ({ userId }: WeeklyDashboardProps) => {
       ['Gastos', weekData.gastos_totales.toFixed(2)],
       ['Saldo Final', weekData.saldo_final.toFixed(2)],
       [],
-      ['Gastos por Categoría'],
-      ['Categoría', 'Monto', 'Porcentaje'],
-      ...categoryData.map(cat => [cat.name, cat.value.toFixed(2), `${cat.percentage.toFixed(1)}%`]),
-      [],
       ['Gastos por Sobre'],
       ['Sobre', 'Gastado', 'Presupuesto', 'Porcentaje', 'Estado'],
       ...envelopeData.map(env => [
