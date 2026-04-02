@@ -37,7 +37,7 @@ interface EnvelopeData {
 
 export const WeeklyDashboard = ({ userId }: WeeklyDashboardProps) => {
   const [weekData, setWeekData] = useState<WeekData | null>(null);
-  const [categoryData, setCategoryData] = useState<CategoryData[]>([]);
+  
   const [envelopeData, setEnvelopeData] = useState<EnvelopeData[]>([]);
   const [loading, setLoading] = useState(true);
 
