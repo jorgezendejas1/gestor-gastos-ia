@@ -192,7 +192,7 @@ export const WeeklyDashboard = ({ userId }: WeeklyDashboardProps) => {
     });
 
     // Envelope breakdown
-    const finalY2 = (doc as any).lastAutoTable.finalY || 120;
+    const finalY2 = (doc as any).lastAutoTable.finalY || 70;
     doc.setFontSize(14);
     doc.text('Gastos por Sobre', 14, finalY2 + 10);
     autoTable(doc, {
