@@ -21,86 +21,50 @@ export const DailySummary = ({ userId, selectedDate, refreshTrigger }: DailySumm
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Pequeño delay para asegurar que los datos estén disponibles después de una inserción
-    const timer = setTimeout(() => {
-      loadDailyData();
-    }, 100);
-    
+    const timer = setTimeout(() => { loadDailyData(); }, 100);
     return () => clearTimeout(timer);
   }, [userId, selectedDate, refreshTrigger]);
 
   const loadDailyData = async () => {
     if (!userId) return;
-    
     setLoading(true);
     try {
       const todayStr = format(selectedDate, 'yyyy-MM-dd');
       const yesterdayStr = format(subDays(selectedDate, 1), 'yyyy-MM-dd');
 
-      // Obtener el "Anochecemos con" del día anterior (que es nuestro "Amanecimos con")
-      // Primero buscamos todos los movimientos hasta ayer para calcular el saldo
       const { data: allPreviousMovements } = await supabase
-        .from('movimientos')
-        .select('monto, tipo, fecha')
-        .eq('user_id', userId)
-        .lte('fecha', yesterdayStr)
-        .order('fecha', { ascending: true });
+        .from('movimientos').select('monto, tipo, fecha').eq('user_id', userId)
+        .lte('fecha', yesterdayStr).order('fecha', { ascending: true });
 
-      // Buscar si hay un saldo inicial definido en la semana más antigua
       const { data: semanas } = await supabase
-        .from('semanas')
-        .select('saldo_inicial, fecha_inicio')
-        .eq('user_id', userId)
-        .order('fecha_inicio', { ascending: true })
-        .limit(1);
+        .from('semanas').select('saldo_inicial, fecha_inicio').eq('user_id', userId)
+        .order('fecha_inicio', { ascending: true }).limit(1);
 
       let saldoBase = semanas?.[0]?.saldo_inicial || 0;
-
-      // Calcular el saldo acumulado hasta ayer
       let saldoAcumulado = Number(saldoBase);
       if (allPreviousMovements) {
         allPreviousMovements.forEach(mov => {
-          if (mov.tipo === 'ingreso') {
-            saldoAcumulado += Number(mov.monto);
-          } else {
-            saldoAcumulado -= Number(mov.monto);
-          }
+          saldoAcumulado += mov.tipo === 'ingreso' ? Number(mov.monto) : -Number(mov.monto);
         });
       }
-
-      // Este saldo acumulado es nuestro "Amanecimos con" de hoy
       const amanecimos = saldoAcumulado;
 
-      // Obtener los gastos de hoy
       const { data: todayMovements } = await supabase
-        .from('movimientos')
-        .select('monto, tipo')
-        .eq('user_id', userId)
-        .eq('fecha', todayStr);
+        .from('movimientos').select('monto, tipo').eq('user_id', userId).eq('fecha', todayStr);
 
       let totalGastosHoy = 0;
       let totalIngresosHoy = 0;
-
       if (todayMovements) {
         todayMovements.forEach(mov => {
-          if (mov.tipo === 'gasto') {
-            totalGastosHoy += Number(mov.monto);
-          } else {
-            totalIngresosHoy += Number(mov.monto);
-          }
+          if (mov.tipo === 'gasto') totalGastosHoy += Number(mov.monto);
+          else totalIngresosHoy += Number(mov.monto);
         });
       }
 
-      // Total del día = gastos - ingresos (mostrar flujo neto negativo)
-      const totalDia = totalGastosHoy;
-      
-      // Anochecemos = Amanecimos + ingresos - gastos
-      const anochecemos = amanecimos + totalIngresosHoy - totalGastosHoy;
-
       setData({
         amanecimos,
-        totalDia,
-        anochecemos
+        totalDia: totalGastosHoy,
+        anochecemos: amanecimos + totalIngresosHoy - totalGastosHoy
       });
     } catch (error) {
       console.error('Error cargando resumen diario:', error);
@@ -109,11 +73,13 @@ export const DailySummary = ({ userId, selectedDate, refreshTrigger }: DailySumm
     }
   };
 
+  const formatMoney = (n: number) => n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-pulse">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[1, 2, 3].map(i => (
-          <Card key={i} className="p-4 h-20 bg-muted" />
+          <Card key={i} className="p-5 h-24 bg-card rounded-2xl border-0 shadow-sm animate-pulse" />
         ))}
       </div>
     );
@@ -122,71 +88,61 @@ export const DailySummary = ({ userId, selectedDate, refreshTrigger }: DailySumm
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {/* Amanecimos con */}
-      <Card className="p-4 shadow-md bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-900/30 dark:to-amber-950/30 border-amber-200 dark:border-amber-800">
+      <Card className="p-5 rounded-2xl border-0 shadow-sm bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/5">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-amber-700 dark:text-amber-300 mb-1 font-medium">
+            <p className="text-xs text-muted-foreground mb-2 font-medium tracking-wide uppercase">
               Amanecimos con
             </p>
-            <p className="text-xl font-bold text-amber-900 dark:text-amber-100 tabular-nums">
-              ${data.amanecimos.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <p className="text-3xl font-light text-foreground tabular-nums">
+              ${formatMoney(data.amanecimos)}
             </p>
           </div>
-          <div className="p-2 bg-amber-200/50 dark:bg-amber-800/50 rounded-full">
-            <Sunrise className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+            <Sunrise className="h-5 w-5 text-primary" />
           </div>
         </div>
       </Card>
 
       {/* Gastos del día */}
-      <Card className="p-4 shadow-md bg-gradient-to-br from-red-100 to-red-50 dark:from-red-900/30 dark:to-red-950/30 border-red-200 dark:border-red-800">
+      <Card className="p-5 rounded-2xl border-0 shadow-sm bg-gradient-to-br from-destructive/5 to-destructive/10 dark:from-destructive/10 dark:to-destructive/5">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-red-700 dark:text-red-300 mb-1 font-medium">
+            <p className="text-xs text-muted-foreground mb-2 font-medium tracking-wide uppercase">
               Gastos del día
             </p>
-            <p className="text-xl font-bold text-red-900 dark:text-red-100 tabular-nums">
-              -${data.totalDia.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <p className="text-3xl font-light text-destructive tabular-nums">
+              -${formatMoney(data.totalDia)}
             </p>
           </div>
-          <div className="p-2 bg-red-200/50 dark:bg-red-800/50 rounded-full">
-            <Sun className="h-5 w-5 text-red-600 dark:text-red-400" />
+          <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
+            <Sun className="h-5 w-5 text-destructive" />
           </div>
         </div>
       </Card>
 
       {/* Anochecemos con */}
-      <Card className={`p-4 shadow-md bg-gradient-to-br ${
+      <Card className={`p-5 rounded-2xl border-0 shadow-sm bg-gradient-to-br ${
         data.anochecemos >= data.amanecimos 
-          ? "from-emerald-100 to-emerald-50 dark:from-emerald-900/30 dark:to-emerald-950/30 border-emerald-200 dark:border-emerald-800"
-          : "from-orange-100 to-orange-50 dark:from-orange-900/30 dark:to-orange-950/30 border-orange-200 dark:border-orange-800"
+          ? "from-success/5 to-success/10 dark:from-success/10 dark:to-success/5"
+          : "from-destructive/5 to-destructive/10 dark:from-destructive/10 dark:to-destructive/5"
       }`}>
         <div className="flex items-center justify-between">
           <div>
-            <p className={`text-xs mb-1 font-medium ${
-              data.anochecemos >= data.amanecimos 
-                ? "text-emerald-700 dark:text-emerald-300"
-                : "text-orange-700 dark:text-orange-300"
-            }`}>
+            <p className="text-xs text-muted-foreground mb-2 font-medium tracking-wide uppercase">
               Anochecemos con
             </p>
-            <p className={`text-xl font-bold tabular-nums ${
-              data.anochecemos >= data.amanecimos 
-                ? "text-emerald-900 dark:text-emerald-100"
-                : "text-orange-900 dark:text-orange-100"
+            <p className={`text-3xl font-light tabular-nums ${
+              data.anochecemos >= data.amanecimos ? "text-success" : "text-destructive"
             }`}>
-              ${data.anochecemos.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${formatMoney(data.anochecemos)}
             </p>
           </div>
-          <div className={`p-2 rounded-full ${
-            data.anochecemos >= data.amanecimos 
-              ? "bg-emerald-200/50 dark:bg-emerald-800/50"
-              : "bg-orange-200/50 dark:bg-orange-800/50"
+          <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+            data.anochecemos >= data.amanecimos ? "bg-success/10" : "bg-destructive/10"
           }`}>
             <Sunset className={`h-5 w-5 ${
-              data.anochecemos >= data.amanecimos 
-                ? "text-emerald-600 dark:text-emerald-400"
-                : "text-orange-600 dark:text-orange-400"
+              data.anochecemos >= data.amanecimos ? "text-success" : "text-destructive"
             }`} />
           </div>
         </div>
