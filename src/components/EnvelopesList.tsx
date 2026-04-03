@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Package, Plus, Pencil, Trash2, PiggyBank, Wallet } from "lucide-react";
+import { Package, Plus, Pencil, Trash2, PiggyBank, Wallet, CreditCard, Banknote, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { EnvelopeEditor } from "./EnvelopeEditor";
 import {
@@ -17,6 +17,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 interface Envelope {
   id: string;
@@ -28,19 +37,47 @@ interface Envelope {
   tipo?: "gasto" | "ahorro";
 }
 
+interface Movement {
+  id: string;
+  fecha: string;
+  descripcion: string;
+  monto: number;
+  metodo_pago: string;
+  tipo: string;
+}
+
 interface EnvelopesListProps {
   userId: string;
   canEdit?: boolean;
 }
+
+const paymentMethodIcon = (method: string) => {
+  switch (method?.toLowerCase()) {
+    case "tarjeta":
+    case "tarjeta de débito":
+    case "tarjeta de crédito":
+      return <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />;
+    case "efectivo":
+      return <Banknote className="h-3.5 w-3.5 text-muted-foreground" />;
+    default:
+      return <Receipt className="h-3.5 w-3.5 text-muted-foreground" />;
+  }
+};
 
 export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) => {
   const [envelopes, setEnvelopes] = useState<Envelope[]>([]);
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<"edit" | "create">("create");
-  const [selectedEnvelope, setSelectedEnvelope] = useState<Envelope | null>(null);
+  const [editingEnvelope, setEditingEnvelope] = useState<Envelope | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [envelopeToDelete, setEnvelopeToDelete] = useState<Envelope | null>(null);
+
+  // Sheet detail states
+  const [selectedEnvelope, setSelectedEnvelope] = useState<Envelope | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [envelopeMovements, setEnvelopeMovements] = useState<Movement[]>([]);
+  const [loadingMovements, setLoadingMovements] = useState(false);
 
   useEffect(() => {
     loadEnvelopes();
@@ -61,6 +98,54 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
 
     setEnvelopes((data || []) as Envelope[]);
     setLoading(false);
+  };
+
+  const loadEnvelopeMovements = async (nombre: string) => {
+    setLoadingMovements(true);
+    try {
+      // Get current week
+      const now = new Date();
+      const localDate = now.toISOString().split('T')[0];
+
+      const { data: semana } = await supabase
+        .from('semanas')
+        .select('id')
+        .eq('user_id', userId)
+        .lte('fecha_inicio', localDate)
+        .gte('fecha_fin', localDate)
+        .maybeSingle();
+
+      if (!semana) {
+        setEnvelopeMovements([]);
+        setLoadingMovements(false);
+        return;
+      }
+
+      const { data: movimientos, error } = await supabase
+        .from('movimientos')
+        .select('id, fecha, descripcion, monto, metodo_pago, tipo')
+        .eq('user_id', userId)
+        .eq('semana_id', semana.id)
+        .eq('categoria', nombre)
+        .order('fecha', { ascending: false });
+
+      if (error) {
+        console.error('Error loading movements:', error);
+        setEnvelopeMovements([]);
+      } else {
+        setEnvelopeMovements((movimientos || []) as Movement[]);
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      setEnvelopeMovements([]);
+    }
+    setLoadingMovements(false);
+  };
+
+  const handleCardClick = (envelope: Envelope) => {
+    setSelectedEnvelope(envelope);
+    setSheetOpen(true);
+    loadEnvelopeMovements(envelope.nombre);
   };
 
   const initializeDefaultEnvelopes = async () => {
@@ -118,19 +203,21 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
     loadEnvelopes();
   };
 
-  const handleEdit = (envelope: Envelope) => {
-    setSelectedEnvelope(envelope);
+  const handleEdit = (envelope: Envelope, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingEnvelope(envelope);
     setEditorMode("edit");
     setEditorOpen(true);
   };
 
   const handleCreate = () => {
-    setSelectedEnvelope(null);
+    setEditingEnvelope(null);
     setEditorMode("create");
     setEditorOpen(true);
   };
 
-  const handleDeleteClick = (envelope: Envelope) => {
+  const handleDeleteClick = (envelope: Envelope, e: React.MouseEvent) => {
+    e.stopPropagation();
     setEnvelopeToDelete(envelope);
     setDeleteDialogOpen(true);
   };
@@ -167,14 +254,18 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
     const metaCumplida = isAhorro && percentage >= 100;
 
     return (
-      <Card key={envelope.id} className="p-4 space-y-3 group relative">
+      <Card
+        key={envelope.id}
+        className="p-4 space-y-3 group relative cursor-pointer hover:shadow-md transition-shadow"
+        onClick={() => handleCardClick(envelope)}
+      >
         {canEdit && (
           <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
             <Button
               variant="ghost"
               size="icon"
               className="h-7 w-7"
-              onClick={() => handleEdit(envelope)}
+              onClick={(e) => handleEdit(envelope, e)}
             >
               <Pencil className="h-3.5 w-3.5" />
             </Button>
@@ -182,7 +273,7 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-destructive hover:text-destructive"
-              onClick={() => handleDeleteClick(envelope)}
+              onClick={(e) => handleDeleteClick(envelope, e)}
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
@@ -241,6 +332,91 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
           </div>
         </div>
       </Card>
+    );
+  };
+
+  const renderSheetContent = () => {
+    if (!selectedEnvelope) return null;
+    const env = selectedEnvelope;
+    const isAhorro = env.tipo === "ahorro";
+    const percentage = env.semanal_calculado > 0
+      ? (env.gastado_semana / env.semanal_calculado) * 100
+      : 0;
+    const diferencia = env.semanal_calculado - env.gastado_semana;
+
+    return (
+      <>
+        {/* Summary */}
+        <div className="space-y-4 mt-4">
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">{isAhorro ? "Ahorrado" : "Gastado"}</span>
+              <span className="font-semibold">${env.gastado_semana.toFixed(2)}</span>
+            </div>
+            <Progress value={Math.min(percentage, 100)} className="h-3" />
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Presupuesto semanal</span>
+              <span className="font-semibold">${env.semanal_calculado.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Restante</span>
+              <span className={`font-semibold ${diferencia >= 0 ? "text-green-600" : "text-destructive"}`}>
+                ${diferencia.toFixed(2)}
+              </span>
+            </div>
+          </div>
+
+          {/* Movements list */}
+          <div className="border-t pt-4">
+            <h4 className="text-sm font-semibold mb-3">Movimientos esta semana</h4>
+            {loadingMovements ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Cargando...</p>
+            ) : envelopeMovements.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Sin movimientos esta semana</p>
+            ) : (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {envelopeMovements.map((mov) => (
+                  <div key={mov.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      {paymentMethodIcon(mov.metodo_pago)}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{mov.descripcion}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(mov.fecha + 'T12:00:00'), 'dd/MM/yyyy', { locale: es })}
+                          {" · "}{mov.metodo_pago}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`text-sm font-semibold ml-2 ${mov.tipo === 'ingreso' ? 'text-green-600' : 'text-foreground'}`}>
+                      {mov.tipo === 'ingreso' ? '+' : '-'}${mov.monto.toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Footer totals */}
+          {envelopeMovements.length > 0 && (
+            <div className="border-t pt-3 space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Total esta semana</span>
+                <span className="font-bold">${env.gastado_semana.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Presupuesto semanal</span>
+                <span className="font-bold">${env.semanal_calculado.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm font-bold">
+                <span>Diferencia</span>
+                <span className={diferencia >= 0 ? "text-green-600" : "text-destructive"}>
+                  {diferencia >= 0 ? "+" : ""}${diferencia.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </>
     );
   };
 
@@ -342,8 +518,28 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
         </TabsContent>
       </Tabs>
 
+      {/* Detail Sheet */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent className="overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              {selectedEnvelope?.tipo === "ahorro" ? (
+                <PiggyBank className="h-5 w-5 text-green-600" />
+              ) : (
+                <Wallet className="h-5 w-5 text-primary" />
+              )}
+              {selectedEnvelope?.nombre}
+            </SheetTitle>
+            <SheetDescription>
+              {selectedEnvelope?.tipo === "ahorro" ? "Sobre de ahorro" : "Sobre de gasto"} · ${selectedEnvelope?.mensual}/mes
+            </SheetDescription>
+          </SheetHeader>
+          {renderSheetContent()}
+        </SheetContent>
+      </Sheet>
+
       <EnvelopeEditor
-        envelope={selectedEnvelope}
+        envelope={editingEnvelope}
         isOpen={editorOpen}
         onClose={() => setEditorOpen(false)}
         onSave={loadEnvelopes}
