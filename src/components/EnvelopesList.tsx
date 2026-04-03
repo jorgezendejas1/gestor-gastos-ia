@@ -3,27 +3,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Package, Plus, Pencil, Trash2, PiggyBank, Wallet, CreditCard, Banknote, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { EnvelopeEditor } from "./EnvelopeEditor";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -53,14 +42,12 @@ interface EnvelopesListProps {
 
 const paymentMethodIcon = (method: string) => {
   switch (method?.toLowerCase()) {
-    case "tarjeta":
-    case "tarjeta de débito":
-    case "tarjeta de crédito":
-      return <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />;
+    case "tarjeta": case "tarjeta de débito": case "tarjeta de crédito":
+      return <CreditCard className="h-4 w-4 text-muted-foreground" />;
     case "efectivo":
-      return <Banknote className="h-3.5 w-3.5 text-muted-foreground" />;
+      return <Banknote className="h-4 w-4 text-muted-foreground" />;
     default:
-      return <Receipt className="h-3.5 w-3.5 text-muted-foreground" />;
+      return <Receipt className="h-4 w-4 text-muted-foreground" />;
   }
 };
 
@@ -72,30 +59,16 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
   const [editingEnvelope, setEditingEnvelope] = useState<Envelope | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [envelopeToDelete, setEnvelopeToDelete] = useState<Envelope | null>(null);
-
-  // Sheet detail states
   const [selectedEnvelope, setSelectedEnvelope] = useState<Envelope | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [envelopeMovements, setEnvelopeMovements] = useState<Movement[]>([]);
   const [loadingMovements, setLoadingMovements] = useState(false);
 
-  useEffect(() => {
-    loadEnvelopes();
-  }, [userId]);
+  useEffect(() => { loadEnvelopes(); }, [userId]);
 
   const loadEnvelopes = async () => {
-    const { data, error } = await supabase
-      .from('sobres')
-      .select('*')
-      .eq('user_id', userId)
-      .order('nombre', { ascending: true });
-
-    if (error) {
-      console.error('Error loading envelopes:', error);
-      toast.error('Error al cargar sobres');
-      return;
-    }
-
+    const { data, error } = await supabase.from('sobres').select('*').eq('user_id', userId).order('nombre', { ascending: true });
+    if (error) { console.error('Error loading envelopes:', error); toast.error('Error al cargar sobres'); return; }
     setEnvelopes((data || []) as Envelope[]);
     setLoading(false);
   };
@@ -103,42 +76,17 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
   const loadEnvelopeMovements = async (nombre: string) => {
     setLoadingMovements(true);
     try {
-      // Get current week
       const now = new Date();
       const localDate = now.toISOString().split('T')[0];
-
-      const { data: semana } = await supabase
-        .from('semanas')
-        .select('id')
-        .eq('user_id', userId)
-        .lte('fecha_inicio', localDate)
-        .gte('fecha_fin', localDate)
-        .maybeSingle();
-
-      if (!semana) {
-        setEnvelopeMovements([]);
-        setLoadingMovements(false);
-        return;
-      }
-
-      const { data: movimientos, error } = await supabase
-        .from('movimientos')
+      const { data: semana } = await supabase.from('semanas').select('id').eq('user_id', userId)
+        .lte('fecha_inicio', localDate).gte('fecha_fin', localDate).maybeSingle();
+      if (!semana) { setEnvelopeMovements([]); setLoadingMovements(false); return; }
+      const { data: movimientos, error } = await supabase.from('movimientos')
         .select('id, fecha, descripcion, monto, metodo_pago, tipo')
-        .eq('user_id', userId)
-        .eq('semana_id', semana.id)
-        .eq('categoria', nombre)
+        .eq('user_id', userId).eq('semana_id', semana.id).eq('categoria', nombre)
         .order('fecha', { ascending: false });
-
-      if (error) {
-        console.error('Error loading movements:', error);
-        setEnvelopeMovements([]);
-      } else {
-        setEnvelopeMovements((movimientos || []) as Movement[]);
-      }
-    } catch (err) {
-      console.error('Error:', err);
-      setEnvelopeMovements([]);
-    }
+      if (error) { setEnvelopeMovements([]); } else { setEnvelopeMovements((movimientos || []) as Movement[]); }
+    } catch { setEnvelopeMovements([]); }
     setLoadingMovements(false);
   };
 
@@ -150,96 +98,53 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
 
   const initializeDefaultEnvelopes = async () => {
     const defaultEnvelopes = [
-      { nombre: 'ABIX', mensual: 652 },
-      { nombre: 'ABOGADO', mensual: 3000 },
-      { nombre: 'AGUA', mensual: 500 },
-      { nombre: 'AMAZON', mensual: 100 },
-      { nombre: 'APPLE', mensual: 700 },
-      { nombre: 'BANORTE', mensual: 600 },
-      { nombre: 'BEBBIA', mensual: 380 },
-      { nombre: 'CFE', mensual: 3000 },
-      { nombre: 'COLEGIATURA MAU', mensual: 1840 },
-      { nombre: 'DISNEY', mensual: 160 },
-      { nombre: 'GASOLINA', mensual: 7400 },
-      { nombre: 'MTO ANGIE', mensual: 600 },
-      { nombre: 'MTO CARIOTA', mensual: 900 },
-      { nombre: 'MTO JARDINES', mensual: 1200 },
-      { nombre: 'NETFLIX', mensual: 500 },
-      { nombre: 'PASAJES VIC', mensual: 800 },
-      { nombre: 'RECARGAS CEL', mensual: 400 },
-      { nombre: 'SEGURO AUDI', mensual: 900 },
-      { nombre: 'SUPER', mensual: 20000 },
-      { nombre: 'TRANSPORTE LEO', mensual: 3200 },
-      { nombre: 'XBOX', mensual: 300 },
-      { nombre: 'YOUTUBE', mensual: 320 },
-      { nombre: 'ACEITE', mensual: 300 },
-      { nombre: 'ANTICONGELANTE', mensual: 200 },
-      { nombre: 'FARMACIA', mensual: 600 },
-      { nombre: 'PROPINAS', mensual: 400 },
+      { nombre: 'ABIX', mensual: 652 }, { nombre: 'ABOGADO', mensual: 3000 },
+      { nombre: 'AGUA', mensual: 500 }, { nombre: 'AMAZON', mensual: 100 },
+      { nombre: 'APPLE', mensual: 700 }, { nombre: 'BANORTE', mensual: 600 },
+      { nombre: 'BEBBIA', mensual: 380 }, { nombre: 'CFE', mensual: 3000 },
+      { nombre: 'COLEGIATURA MAU', mensual: 1840 }, { nombre: 'DISNEY', mensual: 160 },
+      { nombre: 'GASOLINA', mensual: 7400 }, { nombre: 'MTO ANGIE', mensual: 600 },
+      { nombre: 'MTO CARIOTA', mensual: 900 }, { nombre: 'MTO JARDINES', mensual: 1200 },
+      { nombre: 'NETFLIX', mensual: 500 }, { nombre: 'PASAJES VIC', mensual: 800 },
+      { nombre: 'RECARGAS CEL', mensual: 400 }, { nombre: 'SEGURO AUDI', mensual: 900 },
+      { nombre: 'SUPER', mensual: 20000 }, { nombre: 'TRANSPORTE LEO', mensual: 3200 },
+      { nombre: 'XBOX', mensual: 300 }, { nombre: 'YOUTUBE', mensual: 320 },
+      { nombre: 'ACEITE', mensual: 300 }, { nombre: 'ANTICONGELANTE', mensual: 200 },
+      { nombre: 'FARMACIA', mensual: 600 }, { nombre: 'PROPINAS', mensual: 400 },
       { nombre: 'OTRAS', mensual: 400 },
     ];
-
     const sobresData = defaultEnvelopes.map(env => ({
-      user_id: userId,
-      nombre: env.nombre,
-      mensual: env.mensual,
+      user_id: userId, nombre: env.nombre, mensual: env.mensual,
       semanal_calculado: Math.round((env.mensual / 4.345) * 100) / 100,
-      gastado_semana: 0,
-      restante_semana: Math.round((env.mensual / 4.345) * 100) / 100,
+      gastado_semana: 0, restante_semana: Math.round((env.mensual / 4.345) * 100) / 100,
       tipo: 'gasto' as const,
     }));
-
-    const { error } = await supabase
-      .from('sobres')
-      .insert(sobresData);
-
-    if (error) {
-      console.error('Error initializing envelopes:', error);
-      toast.error('Error al inicializar sobres');
-      return;
-    }
-
+    const { error } = await supabase.from('sobres').insert(sobresData);
+    if (error) { toast.error('Error al inicializar sobres'); return; }
     toast.success('Sobres inicializados correctamente');
     loadEnvelopes();
   };
 
   const handleEdit = (envelope: Envelope, e: React.MouseEvent) => {
     e.stopPropagation();
-    setEditingEnvelope(envelope);
-    setEditorMode("edit");
-    setEditorOpen(true);
+    setEditingEnvelope(envelope); setEditorMode("edit"); setEditorOpen(true);
   };
 
   const handleCreate = () => {
-    setEditingEnvelope(null);
-    setEditorMode("create");
-    setEditorOpen(true);
+    setEditingEnvelope(null); setEditorMode("create"); setEditorOpen(true);
   };
 
   const handleDeleteClick = (envelope: Envelope, e: React.MouseEvent) => {
     e.stopPropagation();
-    setEnvelopeToDelete(envelope);
-    setDeleteDialogOpen(true);
+    setEnvelopeToDelete(envelope); setDeleteDialogOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
     if (!envelopeToDelete) return;
-
-    const { error } = await supabase
-      .from("sobres")
-      .delete()
-      .eq("id", envelopeToDelete.id);
-
-    if (error) {
-      console.error("Error deleting envelope:", error);
-      toast.error("Error al eliminar sobre");
-      return;
-    }
-
+    const { error } = await supabase.from("sobres").delete().eq("id", envelopeToDelete.id);
+    if (error) { toast.error("Error al eliminar sobre"); return; }
     toast.success("Sobre eliminado");
-    setDeleteDialogOpen(false);
-    setEnvelopeToDelete(null);
-    loadEnvelopes();
+    setDeleteDialogOpen(false); setEnvelopeToDelete(null); loadEnvelopes();
   };
 
   const gastoEnvelopes = envelopes.filter(e => e.tipo !== "ahorro");
@@ -247,87 +152,67 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
 
   const renderEnvelopeCard = (envelope: Envelope) => {
     const isAhorro = envelope.tipo === "ahorro";
-    const percentage = envelope.semanal_calculado > 0
-      ? (envelope.gastado_semana / envelope.semanal_calculado) * 100
-      : 0;
+    const percentage = envelope.semanal_calculado > 0 ? (envelope.gastado_semana / envelope.semanal_calculado) * 100 : 0;
     const isOverBudget = !isAhorro && percentage > 100;
     const metaCumplida = isAhorro && percentage >= 100;
 
     return (
       <Card
         key={envelope.id}
-        className="p-4 space-y-3 group relative cursor-pointer hover:shadow-md transition-shadow"
+        className={`p-5 space-y-4 group relative cursor-pointer rounded-2xl border-0 shadow-sm hover:shadow-md transition-all duration-200 ${
+          isAhorro ? "bg-gradient-to-br from-success/5 to-card dark:from-success/10 dark:to-card" : "bg-card"
+        }`}
         onClick={() => handleCardClick(envelope)}
       >
+        {/* Status badge */}
+        <div className="absolute top-3 right-3">
+          {isOverBudget ? (
+            <Badge className="bg-destructive/10 text-destructive border-0 text-[10px] font-medium px-2 py-0.5">
+              Excedido
+            </Badge>
+          ) : metaCumplida ? (
+            <Badge className="bg-success/10 text-success border-0 text-[10px] font-medium px-2 py-0.5">
+              ¡Meta!
+            </Badge>
+          ) : (
+            <span className="text-[11px] text-muted-foreground font-light">
+              ${envelope.restante_semana.toFixed(0)}
+            </span>
+          )}
+        </div>
+
+        {/* Edit/Delete buttons */}
         {canEdit && (
-          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={(e) => handleEdit(envelope, e)}
-            >
+          <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={(e) => handleEdit(envelope, e)}>
               <Pencil className="h-3.5 w-3.5" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-destructive hover:text-destructive"
-              onClick={(e) => handleDeleteClick(envelope, e)}
-            >
+            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-destructive hover:text-destructive" onClick={(e) => handleDeleteClick(envelope, e)}>
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
         )}
 
-        <div className="flex justify-between items-start pr-16">
-          <div className="flex items-center gap-2">
-            {isAhorro ? (
-              <PiggyBank className="h-4 w-4 text-green-600" />
-            ) : (
-              <Wallet className="h-4 w-4 text-primary" />
-            )}
-            <h3 className="font-semibold text-sm">{envelope.nombre}</h3>
+        <div className="flex items-center gap-3 pr-16">
+          <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${
+            isAhorro ? "bg-success/10" : "bg-primary/10"
+          }`}>
+            {isAhorro ? <PiggyBank className="h-5 w-5 text-success" /> : <Wallet className="h-5 w-5 text-primary" />}
           </div>
-          <span className="text-xs text-muted-foreground">
-            ${envelope.mensual}/mes
-          </span>
+          <div className="min-w-0">
+            <h3 className="font-semibold text-sm truncate">{envelope.nombre}</h3>
+            <p className="text-xs text-muted-foreground font-light">${envelope.mensual}/mes</p>
+          </div>
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-2">
+          <Progress value={Math.min(percentage, 100)} className="h-1.5 rounded-full" />
           <div className="flex justify-between text-xs">
-            <span className="text-muted-foreground">Semanal</span>
-            <span className="font-medium">
-              ${envelope.semanal_calculado.toFixed(2)}
+            <span className="text-muted-foreground font-light">
+              {isAhorro ? "Ahorrado" : "Gastado"}: <span className="font-medium text-foreground">${envelope.gastado_semana.toFixed(2)}</span>
             </span>
-          </div>
-
-          <Progress 
-            value={Math.min(percentage, 100)} 
-            className={
-              isAhorro 
-                ? metaCumplida ? "bg-green-500/20" : ""
-                : isOverBudget ? "bg-destructive/20" : ""
-            }
-          />
-
-          <div className="flex justify-between text-xs">
-            <span className={
-              isAhorro 
-                ? metaCumplida ? "text-green-600" : "text-muted-foreground"
-                : isOverBudget ? "text-destructive" : "text-muted-foreground"
-            }>
-              {isAhorro ? "Ahorrado:" : "Gastado:"} ${envelope.gastado_semana.toFixed(2)}
-            </span>
-            <span className={
-              isAhorro
-                ? metaCumplida ? "text-green-600 font-medium" : "text-primary font-medium"
-                : isOverBudget ? "text-destructive font-medium" : "text-primary font-medium"
-            }>
-              {isAhorro 
-                ? metaCumplida ? "¡Meta cumplida!" : `Falta: $${envelope.restante_semana.toFixed(2)}`
-                : isOverBudget ? "Excedido" : `Restante: $${envelope.restante_semana.toFixed(2)}`
-              }
+            <span className="text-muted-foreground font-light">
+              de ${envelope.semanal_calculado.toFixed(2)}
             </span>
           </div>
         </div>
@@ -339,92 +224,91 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
     if (!selectedEnvelope) return null;
     const env = selectedEnvelope;
     const isAhorro = env.tipo === "ahorro";
-    const percentage = env.semanal_calculado > 0
-      ? (env.gastado_semana / env.semanal_calculado) * 100
-      : 0;
+    const percentage = env.semanal_calculado > 0 ? (env.gastado_semana / env.semanal_calculado) * 100 : 0;
     const diferencia = env.semanal_calculado - env.gastado_semana;
 
     return (
-      <>
-        {/* Summary */}
-        <div className="space-y-4 mt-4">
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">{isAhorro ? "Ahorrado" : "Gastado"}</span>
-              <span className="font-semibold">${env.gastado_semana.toFixed(2)}</span>
-            </div>
-            <Progress value={Math.min(percentage, 100)} className="h-3" />
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Presupuesto semanal</span>
-              <span className="font-semibold">${env.semanal_calculado.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Restante</span>
-              <span className={`font-semibold ${diferencia >= 0 ? "text-green-600" : "text-destructive"}`}>
-                ${diferencia.toFixed(2)}
-              </span>
-            </div>
+      <div className="space-y-6 mt-6">
+        {/* Progress summary */}
+        <div className="space-y-3">
+          <div className="flex justify-between items-baseline">
+            <span className="text-sm text-muted-foreground font-light">{isAhorro ? "Ahorrado" : "Gastado"}</span>
+            <span className="text-2xl font-light tabular-nums">${env.gastado_semana.toFixed(2)}</span>
           </div>
+          <Progress value={Math.min(percentage, 100)} className="h-2 rounded-full" />
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground font-light">Presupuesto semanal</span>
+            <span className="font-medium">${env.semanal_calculado.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground font-light">Restante</span>
+            <span className={`font-semibold ${diferencia >= 0 ? "text-success" : "text-destructive"}`}>
+              {diferencia >= 0 ? "+" : ""}${diferencia.toFixed(2)}
+            </span>
+          </div>
+        </div>
 
-          {/* Movements list */}
-          <div className="border-t pt-4">
-            <h4 className="text-sm font-semibold mb-3">Movimientos esta semana</h4>
-            {loadingMovements ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Cargando...</p>
-            ) : envelopeMovements.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Sin movimientos esta semana</p>
-            ) : (
-              <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {envelopeMovements.map((mov) => (
-                  <div key={mov.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      {paymentMethodIcon(mov.metodo_pago)}
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{mov.descripcion}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(mov.fecha + 'T12:00:00'), 'dd/MM/yyyy', { locale: es })}
-                          {" · "}{mov.metodo_pago}
-                        </p>
-                      </div>
+        {/* Movements */}
+        <div>
+          <h4 className="text-xs text-muted-foreground font-medium tracking-wide uppercase mb-3">
+            Movimientos esta semana
+          </h4>
+          {loadingMovements ? (
+            <p className="text-sm text-muted-foreground text-center py-6 font-light">Cargando...</p>
+          ) : envelopeMovements.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6 font-light">Sin movimientos esta semana</p>
+          ) : (
+            <div className="divide-y divide-border">
+              {envelopeMovements.map((mov) => (
+                <div key={mov.id} className="flex items-center justify-between py-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    {paymentMethodIcon(mov.metodo_pago)}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{mov.descripcion}</p>
+                      <p className="text-xs text-muted-foreground font-light">
+                        {format(new Date(mov.fecha + 'T12:00:00'), 'dd MMM', { locale: es })} · {mov.metodo_pago}
+                      </p>
                     </div>
-                    <span className={`text-sm font-semibold ml-2 ${mov.tipo === 'ingreso' ? 'text-green-600' : 'text-foreground'}`}>
-                      {mov.tipo === 'ingreso' ? '+' : '-'}${mov.monto.toFixed(2)}
-                    </span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Footer totals */}
-          {envelopeMovements.length > 0 && (
-            <div className="border-t pt-3 space-y-1">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total esta semana</span>
-                <span className="font-bold">${env.gastado_semana.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Presupuesto semanal</span>
-                <span className="font-bold">${env.semanal_calculado.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm font-bold">
-                <span>Diferencia</span>
-                <span className={diferencia >= 0 ? "text-green-600" : "text-destructive"}>
-                  {diferencia >= 0 ? "+" : ""}${diferencia.toFixed(2)}
-                </span>
-              </div>
+                  <span className={`text-sm font-semibold tabular-nums ml-3 ${
+                    mov.tipo === 'ingreso' ? 'text-success' : 'text-foreground'
+                  }`}>
+                    {mov.tipo === 'ingreso' ? '+' : '-'}${mov.monto.toFixed(2)}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
         </div>
-      </>
+
+        {/* Footer totals */}
+        {envelopeMovements.length > 0 && (
+          <div className="bg-secondary/50 rounded-2xl p-4 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground font-light">Total</span>
+              <span className="font-semibold">${env.gastado_semana.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground font-light">Presupuesto</span>
+              <span className="font-semibold">${env.semanal_calculado.toFixed(2)}</span>
+            </div>
+            <div className="border-t border-border pt-2 flex justify-between text-sm font-semibold">
+              <span>Diferencia</span>
+              <span className={diferencia >= 0 ? "text-success" : "text-destructive"}>
+                {diferencia >= 0 ? "+" : ""}${diferencia.toFixed(2)}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
     );
   };
 
   if (loading) {
     return (
-      <Card className="p-6">
+      <Card className="p-6 rounded-2xl border-0 shadow-sm">
         <div className="flex items-center justify-center">
-          <p className="text-muted-foreground">Cargando sobres...</p>
+          <p className="text-muted-foreground font-light">Cargando sobres...</p>
         </div>
       </Card>
     );
@@ -432,21 +316,23 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
 
   if (envelopes.length === 0) {
     return (
-      <Card className="p-6">
+      <Card className="p-8 rounded-2xl border-0 shadow-sm">
         <div className="text-center space-y-4">
-          <Package className="h-12 w-12 text-muted-foreground mx-auto" />
+          <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+            <Package className="h-8 w-8 text-primary" />
+          </div>
           <div>
-            <h3 className="text-lg font-semibold mb-2">No hay sobres configurados</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Inicializa tus sobres de presupuesto para comenzar a monitorear tus gastos semanales
+            <h3 className="text-lg font-semibold mb-1">No hay sobres configurados</h3>
+            <p className="text-sm text-muted-foreground font-light mb-4">
+              Inicializa tus sobres para monitorear tus gastos semanales
             </p>
             {canEdit && (
-              <div className="flex gap-2 justify-center">
-                <Button onClick={initializeDefaultEnvelopes}>
+              <div className="flex gap-3 justify-center">
+                <Button onClick={initializeDefaultEnvelopes} className="rounded-xl">
                   <Plus className="h-4 w-4 mr-2" />
                   Inicializar Sobres
                 </Button>
-                <Button variant="outline" onClick={handleCreate}>
+                <Button variant="outline" onClick={handleCreate} className="rounded-xl">
                   <Plus className="h-4 w-4 mr-2" />
                   Crear Sobre
                 </Button>
@@ -461,25 +347,25 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Package className="h-6 w-6" />
+        <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+          <Package className="h-5 w-5" />
           Sobres
         </h2>
         {canEdit && (
-          <Button onClick={handleCreate} size="sm">
+          <Button onClick={handleCreate} size="sm" className="rounded-xl">
             <Plus className="h-4 w-4 mr-2" />
-            Nuevo Sobre
+            Nuevo
           </Button>
         )}
       </div>
 
       <Tabs defaultValue="gastos" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-4">
-          <TabsTrigger value="gastos" className="flex items-center gap-2">
+        <TabsList className="ios-segmented-control grid w-full grid-cols-2 mb-4 h-auto p-1">
+          <TabsTrigger value="gastos" className="flex items-center gap-2 py-2">
             <Wallet className="h-4 w-4" />
             Gastos ({gastoEnvelopes.length})
           </TabsTrigger>
-          <TabsTrigger value="ahorros" className="flex items-center gap-2">
+          <TabsTrigger value="ahorros" className="flex items-center gap-2 py-2">
             <PiggyBank className="h-4 w-4" />
             Ahorros ({ahorroEnvelopes.length})
           </TabsTrigger>
@@ -487,9 +373,9 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
 
         <TabsContent value="gastos">
           {gastoEnvelopes.length === 0 ? (
-            <Card className="p-6 text-center">
+            <Card className="p-6 text-center rounded-2xl border-0 shadow-sm">
               <Wallet className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-muted-foreground">No hay sobres de gastos</p>
+              <p className="text-muted-foreground font-light">No hay sobres de gastos</p>
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -500,11 +386,11 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
 
         <TabsContent value="ahorros">
           {ahorroEnvelopes.length === 0 ? (
-            <Card className="p-6 text-center">
+            <Card className="p-6 text-center rounded-2xl border-0 shadow-sm">
               <PiggyBank className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-muted-foreground text-sm mb-2">No hay sobres de ahorro</p>
+              <p className="text-muted-foreground text-sm font-light mb-2">No hay sobres de ahorro</p>
               {canEdit && (
-                <Button variant="outline" size="sm" onClick={handleCreate}>
+                <Button variant="outline" size="sm" onClick={handleCreate} className="rounded-xl">
                   <Plus className="h-4 w-4 mr-2" />
                   Crear sobre de ahorro
                 </Button>
@@ -520,17 +406,24 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
 
       {/* Detail Sheet */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              {selectedEnvelope?.tipo === "ahorro" ? (
-                <PiggyBank className="h-5 w-5 text-green-600" />
-              ) : (
-                <Wallet className="h-5 w-5 text-primary" />
-              )}
+        <SheetContent className="overflow-y-auto rounded-l-2xl border-0">
+          <SheetHeader className={`-mx-6 -mt-6 px-6 pt-6 pb-4 rounded-tl-2xl ${
+            selectedEnvelope?.tipo === "ahorro"
+              ? "bg-gradient-to-br from-success/10 to-success/5"
+              : "bg-gradient-to-br from-primary/10 to-primary/5"
+          }`}>
+            <SheetTitle className="flex items-center gap-3 text-lg">
+              <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                selectedEnvelope?.tipo === "ahorro" ? "bg-success/15" : "bg-primary/15"
+              }`}>
+                {selectedEnvelope?.tipo === "ahorro"
+                  ? <PiggyBank className="h-5 w-5 text-success" />
+                  : <Wallet className="h-5 w-5 text-primary" />
+                }
+              </div>
               {selectedEnvelope?.nombre}
             </SheetTitle>
-            <SheetDescription>
+            <SheetDescription className="font-light">
               {selectedEnvelope?.tipo === "ahorro" ? "Sobre de ahorro" : "Sobre de gasto"} · ${selectedEnvelope?.mensual}/mes
             </SheetDescription>
           </SheetHeader>
@@ -539,28 +432,22 @@ export const EnvelopesList = ({ userId, canEdit = true }: EnvelopesListProps) =>
       </Sheet>
 
       <EnvelopeEditor
-        envelope={editingEnvelope}
-        isOpen={editorOpen}
-        onClose={() => setEditorOpen(false)}
-        onSave={loadEnvelopes}
-        userId={userId}
-        mode={editorMode}
+        envelope={editingEnvelope} isOpen={editorOpen}
+        onClose={() => setEditorOpen(false)} onSave={loadEnvelopes}
+        userId={userId} mode={editorMode}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar sobre?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="font-light">
               ¿Estás seguro de eliminar el sobre "{envelopeToDelete?.nombre}"? Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogCancel className="rounded-xl">Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl">
               Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>

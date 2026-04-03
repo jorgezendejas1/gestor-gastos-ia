@@ -2,60 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 195 10% 15%;
+    /* Apple-inspired light mode */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
 
     --card: 0 0% 100%;
-    --card-foreground: 195 10% 15%;
+    --card-foreground: 0 0% 0%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 195 10% 15%;
+    --popover-foreground: 0 0% 0%;
 
-    --primary: 186 65% 45%;
+    /* Apple Blue #007AFF → hsl(211, 100%, 50%) */
+    --primary: 211 100% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 195 10% 95%;
-    --secondary-foreground: 195 10% 15%;
+    --secondary: 240 6% 95%;
+    --secondary-foreground: 0 0% 20%;
 
-    --muted: 195 10% 95%;
-    --muted-foreground: 195 8% 45%;
+    --muted: 240 6% 95%;
+    --muted-foreground: 240 4% 56%;
 
-    --accent: 30 90% 60%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 240 6% 95%;
+    --accent-foreground: 0 0% 20%;
 
-    --success: 142 70% 45%;
+    /* Apple Green #34C759 → hsl(142, 60%, 49%) */
+    --success: 142 60% 49%;
     --success-foreground: 0 0% 100%;
 
-    --destructive: 0 70% 60%;
+    /* Apple Red #FF3B30 → hsl(4, 100%, 59%) */
+    --destructive: 4 100% 59%;
     --destructive-foreground: 0 0% 100%;
 
-    --income: 142 70% 45%;
-    --income-light: 142 70% 95%;
-    
-    --expense: 0 70% 60%;
-    --expense-light: 0 70% 95%;
+    --income: 142 60% 49%;
+    --income-light: 142 60% 95%;
 
-    --border: 195 10% 88%;
-    --input: 195 10% 88%;
-    --ring: 186 65% 45%;
+    --expense: 4 100% 59%;
+    --expense-light: 4 100% 96%;
 
-    --radius: 0.75rem;
+    --border: 240 6% 90%;
+    --input: 240 6% 93%;
+    --ring: 211 100% 50%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(186 65% 45%), hsl(186 65% 55%));
-    --gradient-income: linear-gradient(135deg, hsl(142 70% 45%), hsl(142 70% 55%));
-    --gradient-expense: linear-gradient(135deg, hsl(0 70% 60%), hsl(0 70% 70%));
-    
-    --shadow-sm: 0 2px 8px -2px hsl(195 10% 15% / 0.08);
-    --shadow-md: 0 8px 16px -4px hsl(195 10% 15% / 0.12);
-    --shadow-lg: 0 16px 32px -8px hsl(195 10% 15% / 0.16);
+    --radius: 1rem;
 
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Apple Gray #8E8E93 → hsl(240, 2%, 56%) */
+    --apple-gray: 240 2% 56%;
+    --apple-gray-light: 240 6% 97%;
+
+    --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.04), 0 1px 2px -1px hsl(0 0% 0% / 0.04);
+    --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.08);
+    --shadow-lg: 0 12px 28px -6px hsl(0 0% 0% / 0.12);
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -64,63 +62,63 @@ All colors MUST be HSL.
     --sidebar-accent: 240 4.8% 95.9%;
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 211 100% 50%;
   }
 
   .dark {
-    --background: 195 15% 8%;
-    --foreground: 195 5% 95%;
+    /* Apple Dark #1C1C1E → hsl(240, 6%, 12%) */
+    --background: 240 6% 12%;
+    --foreground: 0 0% 98%;
 
-    --card: 195 15% 10%;
-    --card-foreground: 195 5% 95%;
+    --card: 240 5% 17%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 195 15% 10%;
-    --popover-foreground: 195 5% 95%;
+    --popover: 240 5% 17%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 186 65% 50%;
-    --primary-foreground: 195 15% 8%;
+    --primary: 211 100% 55%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 195 10% 15%;
-    --secondary-foreground: 195 5% 95%;
+    --secondary: 240 4% 22%;
+    --secondary-foreground: 0 0% 92%;
 
-    --muted: 195 10% 15%;
-    --muted-foreground: 195 8% 60%;
+    --muted: 240 4% 22%;
+    --muted-foreground: 240 3% 60%;
 
-    --accent: 30 90% 55%;
-    --accent-foreground: 195 15% 8%;
+    --accent: 240 4% 22%;
+    --accent-foreground: 0 0% 92%;
 
-    --success: 142 70% 50%;
-    --success-foreground: 195 15% 8%;
+    --success: 142 60% 52%;
+    --success-foreground: 0 0% 100%;
 
-    --destructive: 0 70% 55%;
+    --destructive: 4 100% 62%;
     --destructive-foreground: 0 0% 100%;
 
-    --income: 142 70% 50%;
-    --income-light: 142 70% 15%;
-    
-    --expense: 0 70% 55%;
-    --expense-light: 0 70% 15%;
+    --income: 142 60% 52%;
+    --income-light: 142 60% 15%;
 
-    --border: 195 10% 20%;
-    --input: 195 10% 20%;
-    --ring: 186 65% 50%;
+    --expense: 4 100% 62%;
+    --expense-light: 4 100% 15%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(186 65% 50%), hsl(186 65% 60%));
-    --gradient-income: linear-gradient(135deg, hsl(142 70% 50%), hsl(142 70% 60%));
-    --gradient-expense: linear-gradient(135deg, hsl(0 70% 55%), hsl(0 70% 65%));
-    
-    --shadow-sm: 0 2px 8px -2px hsl(0 0% 0% / 0.3);
-    --shadow-md: 0 8px 16px -4px hsl(0 0% 0% / 0.4);
-    --shadow-lg: 0 16px 32px -8px hsl(0 0% 0% / 0.5);
+    --border: 240 4% 24%;
+    --input: 240 4% 24%;
+    --ring: 211 100% 55%;
+
+    --apple-gray: 240 2% 60%;
+    --apple-gray-light: 240 5% 20%;
+
+    --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.2);
+    --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.3);
+    --shadow-lg: 0 12px 28px -6px hsl(0 0% 0% / 0.4);
 
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary: 211 100% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 3.7% 15.9%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 211 100% 55%;
   }
 }
 
@@ -130,11 +128,22 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Tabular numbers for financial amounts */
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
+}
+
+/* iOS Segmented Control */
+.ios-segmented-control {
+  @apply bg-secondary rounded-xl p-1;
+}
+
+.ios-segmented-control [role="tab"] {
+  @apply rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-foreground;
 }
