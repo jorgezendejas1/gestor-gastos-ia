@@ -11,7 +11,7 @@ import { Auth } from "@/components/Auth";
 import { UserManagement } from "@/components/UserManagement";
 import { PermissionGuard } from "@/components/PermissionGuard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, LogOut, Users, CreditCard } from "lucide-react";
+import { Wallet, LogOut, Users, CreditCard, Sparkles } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
