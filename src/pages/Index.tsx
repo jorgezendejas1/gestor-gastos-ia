@@ -22,6 +22,8 @@ import { es } from "date-fns/locale";
 import { mapTransactionToEnvelope } from "@/utils/envelopeMapping";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useWeeklyReset } from "@/hooks/useWeeklyReset";
+import { FinancialIntelligence } from "@/components/FinancialIntelligence";
+import { FinnChat } from "@/components/FinnChat";
 
 interface Transaction {
   id: string;
