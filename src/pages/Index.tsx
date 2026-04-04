@@ -326,18 +326,22 @@ const Index = () => {
 
         {/* iOS Segmented Control Tabs */}
         <Tabs defaultValue="transactions" className="space-y-6">
-          <TabsList className="ios-segmented-control grid w-full grid-cols-3 h-auto p-1">
-            <TabsTrigger value="transactions" className="flex items-center gap-2 py-2.5">
+          <TabsList className="ios-segmented-control grid w-full grid-cols-4 h-auto p-1">
+            <TabsTrigger value="transactions" className="flex items-center gap-1.5 py-2.5">
               <Wallet className="h-4 w-4" />
-              <span className="text-sm">Movimientos</span>
+              <span className="text-xs sm:text-sm">Movimientos</span>
             </TabsTrigger>
-            <TabsTrigger value="budget" className="flex items-center gap-2 py-2.5">
+            <TabsTrigger value="budget" className="flex items-center gap-1.5 py-2.5">
               <CreditCard className="h-4 w-4" />
-              <span className="text-sm">Presupuesto</span>
+              <span className="text-xs sm:text-sm">Presupuesto</span>
             </TabsTrigger>
-            <TabsTrigger value="family" className="flex items-center gap-2 py-2.5">
+            <TabsTrigger value="finance" className="flex items-center gap-1.5 py-2.5">
+              <Sparkles className="h-4 w-4" />
+              <span className="text-xs sm:text-sm">Finanzas</span>
+            </TabsTrigger>
+            <TabsTrigger value="family" className="flex items-center gap-1.5 py-2.5">
               <Users className="h-4 w-4" />
-              <span className="text-sm">Familia</span>
+              <span className="text-xs sm:text-sm">Familia</span>
               {role && (
                 <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0 h-4 border-muted-foreground/30">
                   {role === 'admin' ? 'Admin' : role === 'editor' ? 'Editor' : 'Visor'}
