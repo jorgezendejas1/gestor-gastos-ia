@@ -11,7 +11,7 @@ import { Auth } from "@/components/Auth";
 import { UserManagement } from "@/components/UserManagement";
 import { PermissionGuard } from "@/components/PermissionGuard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, LogOut, Users, CreditCard } from "lucide-react";
+import { Wallet, LogOut, Users, CreditCard, Sparkles } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,8 @@ import { es } from "date-fns/locale";
 import { mapTransactionToEnvelope } from "@/utils/envelopeMapping";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useWeeklyReset } from "@/hooks/useWeeklyReset";
+import { FinancialIntelligence } from "@/components/FinancialIntelligence";
+import { FinnChat } from "@/components/FinnChat";
 
 interface Transaction {
   id: string;
@@ -324,18 +326,22 @@ const Index = () => {
 
         {/* iOS Segmented Control Tabs */}
         <Tabs defaultValue="transactions" className="space-y-6">
-          <TabsList className="ios-segmented-control grid w-full grid-cols-3 h-auto p-1">
-            <TabsTrigger value="transactions" className="flex items-center gap-2 py-2.5">
+          <TabsList className="ios-segmented-control grid w-full grid-cols-4 h-auto p-1">
+            <TabsTrigger value="transactions" className="flex items-center gap-1.5 py-2.5">
               <Wallet className="h-4 w-4" />
-              <span className="text-sm">Movimientos</span>
+              <span className="text-xs sm:text-sm">Movimientos</span>
             </TabsTrigger>
-            <TabsTrigger value="budget" className="flex items-center gap-2 py-2.5">
+            <TabsTrigger value="budget" className="flex items-center gap-1.5 py-2.5">
               <CreditCard className="h-4 w-4" />
-              <span className="text-sm">Presupuesto</span>
+              <span className="text-xs sm:text-sm">Presupuesto</span>
             </TabsTrigger>
-            <TabsTrigger value="family" className="flex items-center gap-2 py-2.5">
+            <TabsTrigger value="finance" className="flex items-center gap-1.5 py-2.5">
+              <Sparkles className="h-4 w-4" />
+              <span className="text-xs sm:text-sm">Finanzas</span>
+            </TabsTrigger>
+            <TabsTrigger value="family" className="flex items-center gap-1.5 py-2.5">
               <Users className="h-4 w-4" />
-              <span className="text-sm">Familia</span>
+              <span className="text-xs sm:text-sm">Familia</span>
               {role && (
                 <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0 h-4 border-muted-foreground/30">
                   {role === 'admin' ? 'Admin' : role === 'editor' ? 'Editor' : 'Visor'}
@@ -365,6 +371,23 @@ const Index = () => {
           <TabsContent value="budget" className="space-y-5">
             <WeeklyDashboard userId={user.id} key={refreshTrigger} />
             <EnvelopesList userId={user.id} canEdit={canEdit} key={`envelopes-${refreshTrigger}`} />
+          </TabsContent>
+
+          <TabsContent value="finance" className="space-y-5">
+            <Tabs defaultValue="panel" className="space-y-4">
+              <TabsList className="ios-segmented-control grid w-full grid-cols-2 h-auto p-1">
+                <TabsTrigger value="panel" className="py-2 text-sm">Panel</TabsTrigger>
+                <TabsTrigger value="finn" className="py-2 text-sm">Finn</TabsTrigger>
+              </TabsList>
+              <TabsContent value="panel">
+                <FinancialIntelligence userId={user.id} />
+              </TabsContent>
+              <TabsContent value="finn">
+                <Card className="rounded-2xl border-0 shadow-sm bg-card overflow-hidden">
+                  <FinnChat userId={user.id} />
+                </Card>
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value="family" className="space-y-5">
