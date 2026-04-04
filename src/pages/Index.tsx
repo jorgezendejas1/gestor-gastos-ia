@@ -373,6 +373,23 @@ const Index = () => {
             <EnvelopesList userId={user.id} canEdit={canEdit} key={`envelopes-${refreshTrigger}`} />
           </TabsContent>
 
+          <TabsContent value="finance" className="space-y-5">
+            <Tabs defaultValue="panel" className="space-y-4">
+              <TabsList className="ios-segmented-control grid w-full grid-cols-2 h-auto p-1">
+                <TabsTrigger value="panel" className="py-2 text-sm">Panel</TabsTrigger>
+                <TabsTrigger value="finn" className="py-2 text-sm">Finn</TabsTrigger>
+              </TabsList>
+              <TabsContent value="panel">
+                <FinancialIntelligence userId={user.id} />
+              </TabsContent>
+              <TabsContent value="finn">
+                <Card className="rounded-2xl border-0 shadow-sm bg-card overflow-hidden">
+                  <FinnChat userId={user.id} />
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
+
           <TabsContent value="family" className="space-y-5">
             <Card className="rounded-2xl border-0 shadow-sm bg-card">
               <CardHeader className="p-5">
