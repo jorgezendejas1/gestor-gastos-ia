@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfWeek, endOfWeek, format } from "date-fns";
+import { es } from "date-fns/locale";
 
 interface Props {
   userId: string;
@@ -45,19 +46,45 @@ const FinnChat = ({ userId }: Props) => {
   }, [messages]);
 
   const buildContext = async (): Promise<string> => {
-    const today = getCancunDate();
-    const weekStart = startOfWeek(today, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
+    const now = getCancunDate();
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
 
-    const [weekRes, sobresRes, txRes] = await Promise.all([
+    const mesActual = now.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
+    const diasEnMes = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const diaActual = now.getDate();
+    const diasRestantes = diasEnMes - diaActual;
+
+    const monthStart = format(new Date(now.getFullYear(), now.getMonth(), 1), 'yyyy-MM-dd');
+    const monthEnd = format(new Date(now.getFullYear(), now.getMonth() + 1, 0), 'yyyy-MM-dd');
+
+    const [weekRes, sobresRes, txRes, monthTxRes] = await Promise.all([
       supabase.from("semanas").select("*").eq("user_id", userId).eq("fecha_inicio", format(weekStart, "yyyy-MM-dd")).single(),
       supabase.from("sobres").select("*").eq("user_id", userId),
       supabase.from("movimientos").select("*").eq("user_id", userId).order("fecha", { ascending: false }).limit(10),
+      supabase.from("movimientos").select("monto, tipo, categoria").eq("user_id", userId).gte("fecha", monthStart).lte("fecha", monthEnd),
     ]);
 
     const week = weekRes.data;
     const sobres = sobresRes.data || [];
     const txs = txRes.data || [];
+    const monthTxs = monthTxRes.data || [];
+
+    const gastoMensual = monthTxs.filter(t => t.tipo === 'gasto').reduce((s, t) => s + Number(t.monto), 0);
+    const ingresoMensual = monthTxs.filter(t => t.tipo === 'ingreso').reduce((s, t) => s + Number(t.monto), 0);
+    const gastoDiarioPromedio = diaActual > 0 ? gastoMensual / diaActual : 0;
+    const proyeccionMes = gastoMensual + (gastoDiarioPromedio * diasRestantes);
+    const proyeccionSuperavit = ingresoMensual - proyeccionMes;
+
+    const catTotals: Record<string, number> = {};
+    monthTxs.filter(t => t.tipo === 'gasto').forEach(t => {
+      const cat = t.categoria || 'Sin categoría';
+      catTotals[cat] = (catTotals[cat] || 0) + Number(t.monto);
+    });
+    const topCats = Object.entries(catTotals)
+      .sort(([,a],[,b]) => b - a)
+      .slice(0, 5)
+      .map(([cat, monto]) => `- ${cat}: $${monto.toFixed(0)}`);
 
     const topEnvelopes = [...sobres]
       .map(s => ({ ...s, percentage: s.semanal_calculado > 0 ? (Number(s.gastado_semana || 0) / s.semanal_calculado) * 100 : 0 }))
@@ -66,38 +93,75 @@ const FinnChat = ({ userId }: Props) => {
 
     const overBudget = sobres.filter(s => Number(s.gastado_semana || 0) > s.semanal_calculado);
 
-    return `Eres Finn, un asesor financiero amigable y experto en finanzas personales.
-Responde siempre en español, de forma concisa y útil (máximo 3 párrafos).
-Usa emojis ocasionalmente para hacer la conversación más amigable.
+    return `Eres Finn, el asesor financiero personal e inteligente del usuario. Tu personalidad es:
+- Amigable, directo y empático — como un amigo que sabe mucho de finanzas
+- Usas español mexicano natural, ocasionalmente emojis (no en exceso)
+- Eres proactivo: si ves algo preocupante en los datos, lo mencionas aunque no te pregunten
+- Tus respuestas son concisas (máximo 4 párrafos) pero completas
+- Cuando el usuario pregunta "¿cómo voy?", das un diagnóstico real con los números
+- Siempre tienes presente el historial de la conversación para dar continuidad
 
-DATOS FINANCIEROS DEL USUARIO (semana actual):
-- Saldo inicial: $${week?.saldo_inicial ?? 0}
-- Ingresos: $${week?.ingresos_totales ?? 0}
-- Gastos: $${week?.gastos_totales ?? 0}
-- Saldo actual: $${week?.saldo_final ?? 0}
+FECHA ACTUAL: ${format(now, "EEEE d 'de' MMMM yyyy", { locale: es })}
+MES EN CURSO: ${mesActual} (día ${diaActual} de ${diasEnMes}, faltan ${diasRestantes} días)
 
-SOBRES CON MÁS GASTO ESTA SEMANA:
-${topEnvelopes.map(e => `- ${e.nombre}: $${Number(e.gastado_semana || 0).toFixed(0)} de $${e.semanal_calculado.toFixed(0)} (${e.percentage.toFixed(0)}%)`).join("\n")}
+═══════════════════════════════════
+SEMANA ACTUAL
+═══════════════════════════════════
+- Saldo inicial de semana: $${week?.saldo_inicial?.toFixed(2) ?? '0.00'}
+- Ingresos esta semana: $${week?.ingresos_totales?.toFixed(2) ?? '0.00'}
+- Gastos esta semana: $${week?.gastos_totales?.toFixed(2) ?? '0.00'}
+- Saldo actual: $${week?.saldo_final?.toFixed(2) ?? '0.00'}
 
-SOBRES EXCEDIDOS:
-${overBudget.map(e => e.nombre).join(", ") || "Ninguno"}
+═══════════════════════════════════
+MES ACTUAL (${mesActual})
+═══════════════════════════════════
+- Ingresos del mes: $${ingresoMensual.toFixed(2)}
+- Gastos del mes: $${gastoMensual.toFixed(2)}
+- Gasto diario promedio: $${gastoDiarioPromedio.toFixed(2)}
+- Proyección de gasto al cierre del mes: $${proyeccionMes.toFixed(2)}
+- Proyección de ${proyeccionSuperavit >= 0 ? 'SUPERÁVIT' : 'DÉFICIT'} al cierre: $${Math.abs(proyeccionSuperavit).toFixed(2)}
 
-ÚLTIMAS 10 TRANSACCIONES:
-${txs.map(t => `- ${t.fecha}: ${t.descripcion} $${t.monto} (${t.tipo})`).join("\n")}`;
+TOP 5 CATEGORÍAS DEL MES:
+${topCats.join('\n') || '- Sin datos aún'}
+
+═══════════════════════════════════
+SOBRES DE PRESUPUESTO (semana actual)
+═══════════════════════════════════
+${topEnvelopes.map(e => 
+  `- ${e.nombre}: $${Number(e.gastado_semana||0).toFixed(0)} / $${e.semanal_calculado.toFixed(0)} (${e.percentage.toFixed(0)}%)${e.percentage > 100 ? ' ⚠️ EXCEDIDO' : e.percentage > 80 ? ' ⚡ casi agotado' : ''}`
+).join('\n')}
+
+SOBRES EXCEDIDOS ESTA SEMANA: ${overBudget.map(e => e.nombre).join(', ') || 'Ninguno ✅'}
+
+═══════════════════════════════════
+ÚLTIMAS 10 TRANSACCIONES
+═══════════════════════════════════
+${txs.map(t => `- ${t.fecha}: ${t.descripcion} | $${Number(t.monto).toFixed(2)} | ${t.tipo} | ${t.categoria || 'sin categoría'}`).join('\n')}`;
   };
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return;
 
     const userMsg: Message = { role: "user", content: text.trim() };
-    setMessages(prev => [...prev, userMsg]);
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
     setInput("");
     setIsLoading(true);
 
     try {
       const context = await buildContext();
+
+      // Send full history EXCEPT the welcome message (index 0)
+      const historyToSend = updatedMessages
+        .filter((_, i) => i > 0) // remove welcome message
+        .map(m => ({ role: m.role, content: m.content }));
+
       const { data, error } = await supabase.functions.invoke("finn-chat", {
-        body: { message: text.trim(), context },
+        body: { 
+          message: text.trim(), 
+          context,
+          history: historyToSend.slice(0, -1) // previous history without current message
+        },
       });
 
       if (error) throw error;
@@ -106,7 +170,7 @@ ${txs.map(t => `- ${t.fecha}: ${t.descripcion} $${t.monto} (${t.tipo})`).join("\
       setMessages(prev => [...prev, { role: "assistant", content: reply }]);
     } catch (e: any) {
       console.error("Finn error:", e);
-      setMessages(prev => [...prev, { role: "assistant", content: "Ocurrió un error. Intenta de nuevo en un momento." }]);
+      setMessages(prev => [...prev, { role: "assistant", content: "Ocurrió un error. Intenta de nuevo." }]);
     }
     setIsLoading(false);
   };
