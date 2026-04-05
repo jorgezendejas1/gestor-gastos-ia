@@ -131,28 +131,28 @@ export const WeeklyDashboard = ({ userId }: WeeklyDashboardProps) => {
 
   if (loading) {
     return (
-      <Card className="rounded-2xl border-0 shadow-sm p-6">
+      <div className="rounded-2xl bg-card border-0 shadow-sm p-6">
         <p className="text-muted-foreground text-center font-light">Cargando dashboard...</p>
-      </Card>
+      </div>
     );
   }
 
   if (!weekData) {
     return (
-      <Card className="rounded-2xl border-0 shadow-sm p-6">
+      <div className="rounded-2xl bg-card border-0 shadow-sm p-6">
         <p className="text-muted-foreground text-center font-light">No hay datos para esta semana</p>
-      </Card>
+      </div>
     );
   }
 
   const overBudgetEnvelopes = envelopeData.filter(env => env.isOverBudget && !env.isMonthlyExhausted);
   const monthlyExhaustedEnvelopes = envelopeData.filter(env => env.isMonthlyExhausted);
 
-  const statCards = [
-    { label: "Saldo Inicial", value: weekData.saldo_inicial, icon: Wallet, color: "text-foreground" },
-    { label: "Ingresos", value: weekData.ingresos_totales, icon: TrendingUp, color: "text-success" },
-    { label: "Gastos", value: weekData.gastos_totales, icon: TrendingDown, color: "text-destructive" },
-    { label: "Saldo Final", value: weekData.saldo_final, icon: Wallet, color: weekData.saldo_final >= 0 ? "text-success" : "text-destructive" },
+  const kpiItems = [
+    { label: "Saldo Inicial", value: weekData.saldo_inicial, color: "text-foreground" },
+    { label: "Ingresos", value: weekData.ingresos_totales, color: "text-success" },
+    { label: "Gastos", value: weekData.gastos_totales, color: "text-destructive" },
+    { label: "Saldo Final", value: weekData.saldo_final, color: weekData.saldo_final >= 0 ? "text-success" : "text-destructive" },
   ];
 
   return (
@@ -190,21 +190,16 @@ export const WeeklyDashboard = ({ userId }: WeeklyDashboardProps) => {
         </Alert>
       )}
 
-      {/* iOS Stat Cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        {statCards.map(({ label, value, icon: Icon, color }) => (
-          <Card key={label} className="p-5 rounded-2xl border-0 shadow-sm">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground font-medium tracking-wide uppercase mb-2">{label}</p>
-                <p className={`text-2xl font-light tabular-nums ${color}`}>
-                  ${value.toFixed(2)}
-                </p>
-              </div>
-              <Icon className={`h-5 w-5 ${color === "text-foreground" ? "text-muted-foreground" : color}`} />
+      {/* Single card with 4 KPI sections */}
+      <div className="rounded-2xl bg-card border-0 shadow-sm overflow-hidden">
+        <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-border/50">
+          {kpiItems.map((kpi) => (
+            <div key={kpi.label} className="p-4">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">{kpi.label}</p>
+              <p className={`text-2xl font-light tabular-nums ${kpi.color}`}>${kpi.value.toFixed(2)}</p>
             </div>
-          </Card>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Export */}
