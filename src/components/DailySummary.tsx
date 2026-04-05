@@ -1,5 +1,3 @@
-import { Card } from "@/components/ui/card";
-import { Sunrise, Sun, Sunset } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays } from "date-fns";
@@ -73,80 +71,30 @@ export const DailySummary = ({ userId, selectedDate, refreshTrigger }: DailySumm
     }
   };
 
-  const formatMoney = (n: number) => n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmt = (n: number) => n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[1, 2, 3].map(i => (
-          <Card key={i} className="p-5 h-24 bg-card rounded-2xl border-0 shadow-sm animate-pulse" />
-        ))}
-      </div>
+      <div className="rounded-2xl bg-card border-0 shadow-sm overflow-hidden animate-pulse h-20" />
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {/* Amanecimos con */}
-      <Card className="p-5 rounded-2xl border-0 shadow-sm bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground mb-2 font-medium tracking-wide uppercase">
-              Amanecimos con
-            </p>
-            <p className="text-3xl font-light text-foreground tabular-nums">
-              ${formatMoney(data.amanecimos)}
-            </p>
-          </div>
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <Sunrise className="h-5 w-5 text-primary" />
-          </div>
+    <div className="rounded-2xl bg-card border-0 shadow-sm overflow-hidden">
+      <div className="grid grid-cols-3 divide-x divide-border/50">
+        <div className="p-4 text-center">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-1 font-medium">Amanecimos</p>
+          <p className="text-xl font-light tabular-nums">${fmt(data.amanecimos)}</p>
         </div>
-      </Card>
-
-      {/* Gastos del día */}
-      <Card className="p-5 rounded-2xl border-0 shadow-sm bg-gradient-to-br from-destructive/5 to-destructive/10 dark:from-destructive/10 dark:to-destructive/5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground mb-2 font-medium tracking-wide uppercase">
-              Gastos del día
-            </p>
-            <p className="text-3xl font-light text-destructive tabular-nums">
-              -${formatMoney(data.totalDia)}
-            </p>
-          </div>
-          <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
-            <Sun className="h-5 w-5 text-destructive" />
-          </div>
+        <div className="p-4 text-center">
+          <p className="text-[10px] text-destructive uppercase tracking-widest mb-1 font-medium">Gastos</p>
+          <p className="text-xl font-light tabular-nums text-destructive">-${fmt(data.totalDia)}</p>
         </div>
-      </Card>
-
-      {/* Anochecemos con */}
-      <Card className={`p-5 rounded-2xl border-0 shadow-sm bg-gradient-to-br ${
-        data.anochecemos >= data.amanecimos 
-          ? "from-success/5 to-success/10 dark:from-success/10 dark:to-success/5"
-          : "from-destructive/5 to-destructive/10 dark:from-destructive/10 dark:to-destructive/5"
-      }`}>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground mb-2 font-medium tracking-wide uppercase">
-              Anochecemos con
-            </p>
-            <p className={`text-3xl font-light tabular-nums ${
-              data.anochecemos >= data.amanecimos ? "text-success" : "text-destructive"
-            }`}>
-              ${formatMoney(data.anochecemos)}
-            </p>
-          </div>
-          <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
-            data.anochecemos >= data.amanecimos ? "bg-success/10" : "bg-destructive/10"
-          }`}>
-            <Sunset className={`h-5 w-5 ${
-              data.anochecemos >= data.amanecimos ? "text-success" : "text-destructive"
-            }`} />
-          </div>
+        <div className="p-4 text-center">
+          <p className={`text-[10px] uppercase tracking-widest mb-1 font-medium ${data.anochecemos >= data.amanecimos ? 'text-success' : 'text-destructive'}`}>Anochecemos</p>
+          <p className={`text-xl font-light tabular-nums ${data.anochecemos >= data.amanecimos ? 'text-success' : 'text-destructive'}`}>${fmt(data.anochecemos)}</p>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };
